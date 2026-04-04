@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
 
 const studentInsights = [
   { name: 'Alex Rivers', score: '94%', trend: 'trending_up', scoreColor: 'var(--secondary)', scoreBg: 'rgba(74, 225, 118, 0.1)', scoreBorder: 'rgba(74, 225, 118, 0.2)' },
@@ -17,7 +18,9 @@ export default function PostSessionAnalytics() {
   const navigate = useNavigate();
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#101419', color: '#e0e2ea', fontFamily: "'Inter', sans-serif", backgroundImage: 'radial-gradient(circle at top right, rgba(128, 131, 255, 0.15), transparent 50%)', paddingBottom: '96px' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <Sidebar />
+      <div style={{ flex: 1, height: '100vh', overflowY: 'auto', backgroundColor: '#101419', color: '#e0e2ea', fontFamily: "'Inter', sans-serif", backgroundImage: 'radial-gradient(circle at top right, rgba(128, 131, 255, 0.15), transparent 50%)', paddingBottom: '96px' }}>
       {/* Top NavBar */}
       <header style={{
         backgroundColor: 'rgba(24, 28, 33, 0.8)',
@@ -230,6 +233,7 @@ export default function PostSessionAnalytics() {
           <span className="material-symbols-outlined">share</span>
           Share with LMS
         </button>
+      </div>
       </div>
     </div>
   );

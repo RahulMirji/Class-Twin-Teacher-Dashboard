@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import useSocket from '../hooks/useSocket';
+import Sidebar from '../components/Sidebar';
 
 const mockStudents = [
   { id: 1, name: 'Alex Chen', status: 'understood', label: 'Student 01' },
@@ -45,10 +46,12 @@ export default function LiveDashboard() {
   };
 
   return (
-    <div style={{ height: '100vh', overflow: 'hidden', backgroundColor: '#0b0f14', backgroundImage: 'radial-gradient(at 0% 0%, rgba(128, 131, 255, 0.08) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(74, 225, 118, 0.05) 0px, transparent 50%)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <Sidebar />
+      <div style={{ flex: 1, height: '100vh', overflowY: 'auto', backgroundColor: '#0b0f14', backgroundImage: 'radial-gradient(at 0% 0%, rgba(128, 131, 255, 0.08) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(74, 225, 118, 0.05) 0px, transparent 50%)', position: 'relative' }}>
       {/* Top NavBar */}
       <nav style={{
-        position: 'fixed', top: 0, width: '100%', zIndex: 50,
+        position: 'sticky', top: 0, width: '100%', zIndex: 50,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '16px 24px',
         backgroundColor: 'rgba(24, 28, 33, 0.6)',
@@ -90,7 +93,7 @@ export default function LiveDashboard() {
       </nav>
 
       {/* Main Content */}
-      <main style={{ paddingTop: '96px', paddingBottom: '128px', padding: '96px 32px 128px', height: '100vh', display: 'flex', gap: '32px' }}>
+      <main style={{ padding: '24px 32px 128px', display: 'flex', gap: '32px' }}>
         {/* Left: Heatmap Grid */}
         <section style={{ flexGrow: 1 }}>
           <div style={{
@@ -264,6 +267,7 @@ export default function LiveDashboard() {
       {/* Decorative Atmosphere */}
       <div style={{ position: 'fixed', top: '20%', left: '10%', width: '30vw', height: '30vw', background: 'rgba(49, 46, 129, 0.1)', filter: 'blur(150px)', zIndex: -10, borderRadius: '50%' }} />
       <div style={{ position: 'fixed', bottom: 0, right: 0, width: '40vw', height: '40vw', background: 'rgba(6, 78, 59, 0.05)', filter: 'blur(150px)', zIndex: -10, borderRadius: '50%' }} />
+      </div>
     </div>
   );
 }
