@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import { supabase } from '../lib/supabase';
 
 const SOCKET_URL = 'http://localhost:3001';
 
@@ -15,13 +16,22 @@ export default function useSocket(sessionCode) {
   const [classHealth, setClassHealth] = useState(null);
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-    });
+    async function connectSocket() {
+      // Get current auth session token
+      let authToken = null;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        authToken = session?.access_token || null;
+      } catch (e) { /* no-op */ }
 
-    socketRef.current = socket;
+      const socket = io(SOCKET_URL, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        auth: authToken ? { token: authToken } : undefined,
+      });
+
+      socketRef.current = socket;
 
     socket.on('connect', () => {
       console.log('🔌 Connected to ClassTwin server');
@@ -59,9 +69,12 @@ export default function useSocket(sessionCode) {
     socket.on('qr_code', (data) => {
       setQrCode(data.qrCode);
     });
+    }
+
+    connectSocket();
 
     return () => {
-      socket.disconnect();
+      socketRef.current?.disconnect();
     };
   }, []);
 

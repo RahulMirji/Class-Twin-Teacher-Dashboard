@@ -1,7 +1,14 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Sidebar({ onStartSession }) {
   const navigate = useNavigate();
+  const { signOut, user } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login', { replace: true });
+  };
   
   const navItems = [
     { icon: 'dashboard', label: 'Dashboard', path: '/sessions' },
@@ -94,8 +101,36 @@ export default function Sidebar({ onStartSession }) {
         ))}
       </nav>
 
-      {/* Logout */}
+      {/* User info + Logout */}
       <div style={{ paddingTop: '24px', borderTop: '1px solid rgba(70, 69, 84, 0.1)' }}>
+        {user && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '8px 16px', marginBottom: '12px',
+          }}>
+            {user.user_metadata?.avatar_url ? (
+              <img src={user.user_metadata.avatar_url} alt=""
+                style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid rgba(192, 193, 255, 0.2)' }} />
+            ) : (
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                backgroundColor: 'var(--surface-container-highest)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '14px', fontWeight: 700, color: 'var(--primary-fixed-dim)',
+              }}>
+                {(user.user_metadata?.full_name || user.email)?.[0]?.toUpperCase()}
+              </div>
+            )}
+            <div style={{ overflow: 'hidden' }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--on-surface)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.user_metadata?.full_name || user.email?.split('@')[0]}
+              </p>
+              <p style={{ fontSize: '10px', color: 'var(--on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.email}
+              </p>
+            </div>
+          </div>
+        )}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -106,6 +141,7 @@ export default function Sidebar({ onStartSession }) {
           transition: 'color 0.2s',
           fontSize: '14px',
         }}
+        onClick={handleLogout}
         onMouseOver={e => e.currentTarget.style.color = 'var(--error)'}
         onMouseOut={e => e.currentTarget.style.color = 'rgba(224, 226, 234, 0.5)'}
         >

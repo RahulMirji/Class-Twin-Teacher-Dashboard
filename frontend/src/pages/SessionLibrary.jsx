@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import StartSessionModal from '../components/StartSessionModal';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const sessionCards = [
   {
@@ -31,7 +33,34 @@ const sessionCards = [
 
 export default function SessionLibrary() {
   const [showModal, setShowModal] = useState(false);
+  const [pastSessions, setPastSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Professor';
+
+  useEffect(() => {
+    fetchPastSessions();
+  }, []);
+
+  async function fetchPastSessions() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/sessions`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPastSessions(data);
+      }
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -47,7 +76,7 @@ export default function SessionLibrary() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '24px', flexWrap: 'wrap' }}>
             <div>
               <h2 className="font-headline" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '8px' }}>
-                Welcome back, <span style={{ color: 'var(--primary-fixed-dim)' }}>Professor Smith</span>
+                Welcome back, <span style={{ color: 'var(--primary-fixed-dim)' }}>{displayName}</span>
               </h2>
               <p style={{ color: 'var(--on-surface-variant)', fontWeight: 500, letterSpacing: '0.02em' }}>Ready to orchestrate today's cognitive experience?</p>
             </div>
