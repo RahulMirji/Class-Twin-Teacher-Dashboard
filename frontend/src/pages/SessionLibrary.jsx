@@ -145,34 +145,112 @@ export default function SessionLibrary() {
                   <p style={{ fontSize: '14px', color: 'var(--on-surface-variant)', lineHeight: 1.6, marginBottom: '24px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {card.desc}
                   </p>
-                  {/* Heatmap Thumbnail */}
+                  {/* Data Visualization */}
                   <div style={{
-                    position: 'relative', width: '100%', height: '96px',
-                    backgroundColor: card.heatmapBars ? 'var(--surface-container-lowest)' : 'transparent',
+                    position: 'relative', width: '100%', height: '110px',
                     borderRadius: '16px', overflow: 'hidden', marginBottom: '24px',
-                    display: 'flex', alignItems: card.heatmapBars ? 'flex-end' : 'center',
-                    justifyContent: card.heatmapBars ? 'space-between' : 'center',
-                    padding: card.heatmapBars ? '4px' : undefined,
-                    border: card.heatmapBars ? '1px solid rgba(255, 255, 255, 0.05)' : '1px dashed rgba(70, 69, 84, 0.3)',
+                    border: card.heatmapBars ? '1px solid rgba(255, 255, 255, 0.06)' : '1px dashed rgba(70, 69, 84, 0.3)',
+                    background: card.heatmapBars
+                      ? 'linear-gradient(180deg, rgba(10, 14, 19, 0.6) 0%, rgba(16, 20, 25, 0.9) 100%)'
+                      : 'transparent',
                   }}>
-                    {card.heatmapBars ? (
-                      <>
-                        {card.heatmapBars.map((h, j) => (
-                          <div key={j} style={{
-                            width: '8px',
-                            height: `${h}%`,
-                            borderRadius: '2px 2px 0 0',
-                            backgroundColor: card.highlighted
-                              ? `rgba(74, 225, 118, 0.8)`
-                              : `rgba(${j % 2 === 0 ? '192, 193, 255' : '74, 225, 118'}, ${0.2 + (h / 200)})`,
-                          }} />
-                        ))}
-                        <div style={{ position: 'absolute', top: '8px', left: '12px', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700, color: card.highlighted ? 'rgba(74, 225, 118, 0.6)' : 'rgba(199, 196, 215, 0.4)', letterSpacing: '-0.01em' }}>
-                          {card.heatmapLabel}
-                        </div>
-                      </>
-                    ) : (
-                      <span style={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, color: 'rgba(199, 196, 215, 0.3)', letterSpacing: '0.1em' }}>No session data yet</span>
+                    {card.heatmapBars ? (() => {
+                      const barCount = card.heatmapBars.length;
+                      const barWidth = 20;
+                      const gap = 6;
+                      const totalW = barCount * (barWidth + gap) - gap;
+                      const svgW = totalW + 32;
+                      const svgH = 110;
+                      const maxH = svgH - 30;
+                      const gradId = `barGrad_${i}`;
+                      const glowId = `barGlow_${i}`;
+                      const areaId = `areaGrad_${i}`;
+                      const isGreen = card.highlighted;
+                      const c1 = isGreen ? '#4ae176' : '#8083ff';
+                      const c2 = isGreen ? '#2dd573' : '#c0c1ff';
+
+                      // Build area path (smooth curve connecting bar tops)
+                      const points = card.heatmapBars.map((h, j) => {
+                        const x = 16 + j * (barWidth + gap) + barWidth / 2;
+                        const y = svgH - 6 - (h / 100) * maxH;
+                        return { x, y };
+                      });
+                      const areaPath = points.reduce((acc, p, idx) => {
+                        if (idx === 0) return `M${p.x},${p.y}`;
+                        const prev = points[idx - 1];
+                        const cx = (prev.x + p.x) / 2;
+                        return `${acc} C${cx},${prev.y} ${cx},${p.y} ${p.x},${p.y}`;
+                      }, '') + ` L${points[points.length - 1].x},${svgH} L${points[0].x},${svgH} Z`;
+
+                      return (
+                        <svg width="100%" height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+                          <defs>
+                            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={c1} stopOpacity="0.9" />
+                              <stop offset="100%" stopColor={c2} stopOpacity="0.4" />
+                            </linearGradient>
+                            <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={c1} stopOpacity="0.12" />
+                              <stop offset="100%" stopColor={c1} stopOpacity="0.01" />
+                            </linearGradient>
+                            <filter id={glowId}>
+                              <feGaussianBlur stdDeviation="3" result="blur" />
+                              <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                              </feMerge>
+                            </filter>
+                          </defs>
+
+                          {/* Subtle horizontal grid lines */}
+                          {[0.25, 0.5, 0.75].map((frac, gi) => (
+                            <line key={gi} x1="16" y1={svgH - 6 - frac * maxH} x2={svgW - 16} y2={svgH - 6 - frac * maxH}
+                              stroke="rgba(224, 226, 234, 0.04)" strokeWidth="1" strokeDasharray="4 4" />
+                          ))}
+
+                          {/* Area fill behind bars */}
+                          <path d={areaPath} fill={`url(#${areaId})`} />
+
+                          {/* Bars */}
+                          {card.heatmapBars.map((h, j) => {
+                            const barH = (h / 100) * maxH;
+                            const x = 16 + j * (barWidth + gap);
+                            const y = svgH - 6 - barH;
+                            return (
+                              <g key={j}>
+                                <rect x={x} y={y} width={barWidth} height={barH}
+                                  rx="4" ry="4"
+                                  fill={`url(#${gradId})`}
+                                  filter={h > 70 ? `url(#${glowId})` : undefined}
+                                  style={{ transition: 'all 0.3s' }}
+                                />
+                                {/* Highlight cap on tall bars */}
+                                {h > 60 && (
+                                  <rect x={x} y={y} width={barWidth} height="3"
+                                    rx="2" ry="2"
+                                    fill={c1} opacity="0.7"
+                                  />
+                                )}
+                              </g>
+                            );
+                          })}
+
+                          {/* Label */}
+                          <text x="16" y="16" fill={isGreen ? 'rgba(74, 225, 118, 0.5)' : 'rgba(192, 193, 255, 0.4)'}
+                            fontSize="8" fontWeight="700" textAnchor="start"
+                            style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Inter, sans-serif' }}>
+                            {card.heatmapLabel}
+                          </text>
+                        </svg>
+                      );
+                    })() : (
+                      <div style={{
+                        height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexDirection: 'column', gap: '8px',
+                      }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '24px', color: 'rgba(199, 196, 215, 0.15)' }}>bar_chart</span>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, color: 'rgba(199, 196, 215, 0.2)', letterSpacing: '0.1em' }}>No session data yet</span>
+                      </div>
                     )}
                   </div>
                 </div>
