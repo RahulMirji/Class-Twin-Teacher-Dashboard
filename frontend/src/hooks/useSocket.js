@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 
 const SOCKET_URL = 'http://localhost:3001';
 
-export function useSocket() {
+export default function useSocket(sessionCode) {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [twinData, setTwinData] = useState(null);
@@ -11,6 +11,8 @@ export function useSocket() {
   const [currentRound, setCurrentRound] = useState(null);
   const [students, setStudents] = useState([]);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [qrCode, setQrCode] = useState(null);
+  const [classHealth, setClassHealth] = useState(null);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, {
@@ -41,12 +43,9 @@ export function useSocket() {
 
     socket.on('twin_update', (data) => {
       setTwinData(data);
-      if (data.aiInsight) {
-        setAiInsight(data.aiInsight);
-      }
-      if (data.students) {
-        setStudents(data.students);
-      }
+      if (data.aiInsight) setAiInsight(data.aiInsight);
+      if (data.students) setStudents(data.students);
+      if (data.classHealth !== undefined) setClassHealth(data.classHealth);
     });
 
     socket.on('round_start', (data) => {
@@ -57,6 +56,10 @@ export function useSocket() {
       setSessionEnded(true);
     });
 
+    socket.on('qr_code', (data) => {
+      setQrCode(data.qrCode);
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -64,7 +67,10 @@ export function useSocket() {
 
   const createSession = useCallback((data) => {
     return new Promise((resolve) => {
-      socketRef.current?.emit('create_session', data, resolve);
+      socketRef.current?.emit('create_session', data, (response) => {
+        if (response?.qrCode) setQrCode(response.qrCode);
+        resolve(response);
+      });
     });
   }, []);
 
@@ -94,6 +100,8 @@ export function useSocket() {
     currentRound,
     students,
     sessionEnded,
+    qrCode,
+    classHealth,
     createSession,
     startSession,
     nextRound,
