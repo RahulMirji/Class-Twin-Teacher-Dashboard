@@ -8,6 +8,7 @@ const cors = require('cors');
 const SessionManager = require('./sessionManager');
 const { processRound } = require('./riskEngine');
 const { getAIInsight } = require('./aiService');
+const { supabase, createUserClient } = require('./supabaseClient');
 
 const app = express();
 const httpServer = createServer(app);
@@ -22,6 +23,25 @@ app.use(cors());
 app.use(express.json());
 
 const sessionManager = new SessionManager();
+
+// ═══════════════════════════════════════════════
+// Auth Middleware — verifies Supabase JWT
+// ═══════════════════════════════════════════════
+
+async function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid authorization header' });
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+  req.user = user;
+  req.accessToken = token;
+  next();
+}
 
 // Sample questions
 const SAMPLE_QUESTIONS = [
@@ -43,21 +63,63 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
-app.get('/api/sessions', (req, res) => {
-  res.json(sessionManager.getAllSessions());
+// Get teacher profile
+app.get('/api/me', authMiddleware, async (req, res) => {
+  const userClient = createUserClient(req.accessToken);
+  const { data, error } = await userClient
+    .from('teachers')
+    .select('*')
+    .eq('id', req.user.id)
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
 
-app.post('/api/sessions', async (req, res) => {
-  const { topic, teacherId, totalRounds } = req.body;
+// Get all sessions for authenticated teacher (from Supabase)
+app.get('/api/sessions', authMiddleware, async (req, res) => {
+  const userClient = createUserClient(req.accessToken);
+  const { data, error } = await userClient
+    .from('sessions')
+    .select('*, session_students(count)')
+    .eq('created_by', req.user.id)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Error fetching sessions:', error);
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data);
+});
+
+// Create a new session (authenticated)
+app.post('/api/sessions', authMiddleware, async (req, res) => {
+  const { topic, totalRounds } = req.body;
   const session = await sessionManager.createSession({
     topic: topic || 'General',
-    teacherId: teacherId || 'teacher-1',
+    teacherId: req.user.id,
     totalRounds: totalRounds || 8,
     questions: SAMPLE_QUESTIONS
   });
+
+  // Persist to Supabase
+  try {
+    const userClient = createUserClient(req.accessToken);
+    await userClient.from('sessions').insert({
+      id: session.id,
+      join_code: session.code,
+      topic: session.topic,
+      created_by: req.user.id,
+      total_rounds: session.totalRounds,
+      current_round: session.currentRound,
+      status: session.status,
+    });
+  } catch (err) {
+    console.error('Error persisting session:', err);
+  }
+
   res.json(session);
 });
 
+// Get session by code (public — students use this to join)
 app.get('/api/sessions/:code', (req, res) => {
   const session = sessionManager.getSession(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });

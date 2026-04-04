@@ -52,7 +52,7 @@ export default function LandingPage() {
           <a href="#features" style={{ color: 'rgba(224, 226, 234, 0.6)', fontSize: '14px', transition: 'color 0.3s' }}>Features</a>
           <a href="#" style={{ color: 'rgba(224, 226, 234, 0.6)', fontSize: '14px' }}>Pricing</a>
           <a href="#" style={{ color: 'rgba(224, 226, 234, 0.6)', fontSize: '14px' }}>Case Studies</a>
-          <button onClick={() => navigate('/sessions')} style={{
+          <button onClick={() => navigate('/login')} style={{
             padding: '10px 24px',
             background: 'linear-gradient(to right, var(--primary), var(--inverse-primary))',
             color: 'var(--on-primary-fixed)', fontWeight: 700, borderRadius: '12px',
@@ -93,7 +93,7 @@ export default function LandingPage() {
         </p>
 
         <div style={{ display: 'flex', gap: '16px', marginBottom: '80px' }}>
-          <button onClick={() => navigate('/sessions')} style={{
+          <button onClick={() => navigate('/login')} style={{
             padding: '16px 32px',
             background: 'linear-gradient(to right, var(--primary), var(--inverse-primary))',
             color: 'var(--on-primary-fixed)', fontWeight: 700, borderRadius: '16px',
@@ -201,7 +201,7 @@ export default function LandingPage() {
             Join over 2,500 educators redefining the limits of classroom intelligence. Experience the future of pedagogy.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-            <button onClick={() => navigate('/sessions')} style={{
+            <button onClick={() => navigate('/login')} style={{
               padding: '14px 28px',
               background: 'linear-gradient(to right, var(--primary), var(--inverse-primary))',
               color: 'var(--on-primary-fixed)', fontWeight: 700, borderRadius: '14px',

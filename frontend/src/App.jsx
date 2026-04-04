@@ -1,20 +1,40 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
 import SessionLibrary from './pages/SessionLibrary';
 import SessionLobby from './pages/SessionLobby';
 import LiveDashboard from './pages/LiveDashboard';
 import PostSessionAnalytics from './pages/PostSessionAnalytics';
 
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: 'var(--background)', color: 'var(--on-surface)',
+      }}>
+        <div style={{ fontSize: '18px', opacity: 0.6 }}>Loading...</div>
+      </div>
+    );
+  }
+  return user ? children : <Navigate to="/login" replace />;
+}
+
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/sessions" element={<SessionLibrary />} />
-        <Route path="/lobby/:code" element={<SessionLobby />} />
-        <Route path="/dashboard" element={<LiveDashboard />} />
-        <Route path="/analytics" element={<PostSessionAnalytics />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/sessions" element={<ProtectedRoute><SessionLibrary /></ProtectedRoute>} />
+          <Route path="/lobby/:code" element={<ProtectedRoute><SessionLobby /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><LiveDashboard /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><PostSessionAnalytics /></ProtectedRoute>} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }

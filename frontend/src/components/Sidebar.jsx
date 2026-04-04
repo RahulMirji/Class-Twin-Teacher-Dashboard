@@ -189,52 +189,49 @@ export default function Sidebar({ onStartSession }) {
         ))}
       </nav>
 
-      {/* Bottom Section */}
-      <div style={{
-        display: 'flex', flexDirection: 'column', gap: '2px',
-        paddingTop: '8px',
-        borderTop: '1px solid rgba(192, 193, 255, 0.06)',
-      }}>
-        {/* Bottom nav items */}
-        {bottomItems.map((item) => (
-          <div
-            key={item.label}
-            onMouseEnter={() => setHoveredItem(item.label)}
-            onMouseLeave={() => setHoveredItem(null)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              padding: collapsed ? '10px' : '10px 14px',
-              borderRadius: '12px', cursor: 'pointer',
-              transition: 'all 0.2s',
-              color: 'rgba(224, 226, 234, 0.35)',
-              background: hoveredItem === item.label ? 'rgba(224, 226, 234, 0.04)' : 'transparent',
-              fontSize: '13px', fontWeight: 500,
-              justifyContent: collapsed ? 'center' : 'flex-start',
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>{item.icon}</span>
-            {!collapsed && <span>{item.label}</span>}
-          </div>
-        ))}
-
-        {/* Divider */}
-        <div style={{
-          height: '1px', margin: '6px 8px',
-          background: 'linear-gradient(to right, transparent, rgba(192, 193, 255, 0.06), transparent)',
-        }} />
-
-        {/* User Profile */}
-        <div
-          onMouseEnter={() => setHoveredItem('profile')}
-          onMouseLeave={() => setHoveredItem(null)}
-          style={{
+      {/* User info + Logout */}
+      <div style={{ paddingTop: '24px', borderTop: '1px solid rgba(70, 69, 84, 0.1)' }}>
+        {user && (
+          <div style={{
             display: 'flex', alignItems: 'center', gap: '12px',
-            padding: collapsed ? '10px' : '10px 14px',
-            borderRadius: '14px', cursor: 'pointer',
-            transition: 'all 0.2s',
-            background: hoveredItem === 'profile' ? 'rgba(224, 226, 234, 0.04)' : 'transparent',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-          }}
+            padding: '8px 16px', marginBottom: '12px',
+          }}>
+            {user.user_metadata?.avatar_url ? (
+              <img src={user.user_metadata.avatar_url} alt=""
+                style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid rgba(192, 193, 255, 0.2)' }} />
+            ) : (
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                backgroundColor: 'var(--surface-container-highest)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '14px', fontWeight: 700, color: 'var(--primary-fixed-dim)',
+              }}>
+                {(user.user_metadata?.full_name || user.email)?.[0]?.toUpperCase()}
+              </div>
+            )}
+            <div style={{ overflow: 'hidden' }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--on-surface)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.user_metadata?.full_name || user.email?.split('@')[0]}
+              </p>
+              <p style={{ fontSize: '10px', color: 'var(--on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.email}
+              </p>
+            </div>
+          </div>
+        )}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '12px 16px',
+          color: 'rgba(224, 226, 234, 0.5)',
+          cursor: 'pointer',
+          transition: 'color 0.2s',
+          fontSize: '14px',
+        }}
+        onClick={handleLogout}
+        onMouseOver={e => e.currentTarget.style.color = 'var(--error)'}
+        onMouseOut={e => e.currentTarget.style.color = 'rgba(224, 226, 234, 0.5)'}
         >
           <div style={{
             width: '34px', height: '34px', minWidth: '34px',
