@@ -1,10 +1,17 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Sidebar({ onStartSession }) {
   const navigate = useNavigate();
   const [hoveredItem, setHoveredItem] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login', { replace: true });
+  };
 
   const navItems = [
     { icon: 'space_dashboard', label: 'Dashboard', path: '/sessions', badge: null, end: true },
@@ -194,66 +201,60 @@ export default function Sidebar({ onStartSession }) {
         {user && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: '12px',
-            padding: '8px 16px', marginBottom: '12px',
+            padding: '8px 16px', marginBottom: '8px',
           }}>
             {user.user_metadata?.avatar_url ? (
               <img src={user.user_metadata.avatar_url} alt=""
-                style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid rgba(192, 193, 255, 0.2)' }} />
+                style={{ width: '34px', height: '34px', minWidth: '34px', borderRadius: '50%', border: '2px solid rgba(192, 193, 255, 0.2)' }} />
             ) : (
               <div style={{
-                width: '32px', height: '32px', borderRadius: '50%',
-                backgroundColor: 'var(--surface-container-highest)',
+                width: '34px', height: '34px', minWidth: '34px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--primary), var(--inverse-primary))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '14px', fontWeight: 700, color: 'var(--primary-fixed-dim)',
+                fontSize: '14px', fontWeight: 700, color: 'var(--on-primary-fixed)',
               }}>
                 {(user.user_metadata?.full_name || user.email)?.[0]?.toUpperCase()}
               </div>
             )}
-            <div style={{ overflow: 'hidden' }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--on-surface)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.user_metadata?.full_name || user.email?.split('@')[0]}
-              </p>
-              <p style={{ fontSize: '10px', color: 'var(--on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.email}
-              </p>
-            </div>
+            {!collapsed && (
+              <div style={{ overflow: 'hidden', flex: 1 }}>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: '#e0e2ea', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]}
+                </p>
+                <p style={{ fontSize: '10px', color: 'rgba(224, 226, 234, 0.4)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user.email}
+                </p>
+              </div>
+            )}
           </div>
         )}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '12px 16px',
-          color: 'rgba(224, 226, 234, 0.5)',
-          cursor: 'pointer',
-          transition: 'color 0.2s',
-          fontSize: '14px',
-        }}
-        onClick={handleLogout}
-        onMouseOver={e => e.currentTarget.style.color = 'var(--error)'}
-        onMouseOut={e => e.currentTarget.style.color = 'rgba(224, 226, 234, 0.5)'}
-        >
-          <div style={{
-            width: '34px', height: '34px', minWidth: '34px',
+
+        {/* Logout Button */}
+        <div
+          onClick={handleLogout}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '10px 16px', margin: '0 8px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #4ae176, #2dd573)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '14px', fontWeight: 700, color: '#0a1a0f',
-            boxShadow: '0 4px 12px rgba(74, 225, 118, 0.2)',
-          }}>PS</div>
-          {!collapsed && (
-            <div style={{ overflow: 'hidden', flex: 1 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#e0e2ea', lineHeight: 1.2 }}>Prof. Smith</p>
-              <p style={{ fontSize: '10px', color: 'rgba(224, 226, 234, 0.35)', marginTop: '1px' }}>Computer Science</p>
-            </div>
-          )}
-          {!collapsed && (
-            <span className="material-symbols-outlined" style={{
-              fontSize: '16px', color: 'rgba(224, 226, 234, 0.25)',
-            }}>more_horiz</span>
-          )}
+            color: 'rgba(224, 226, 234, 0.45)',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            fontSize: '14px',
+          }}
+          onMouseOver={e => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 180, 171, 0.08)';
+            e.currentTarget.style.color = 'var(--error)';
+          }}
+          onMouseOut={e => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = 'rgba(224, 226, 234, 0.45)';
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span>
+          {!collapsed && <span style={{ fontWeight: 500, fontSize: '13px' }}>Log Out</span>}
         </div>
       </div>
+
 
       {/* CSS Keyframes */}
       <style>{`
