@@ -63,4 +63,27 @@ async function deleteRoom(roomName) {
   }
 }
 
-module.exports = { generateToken, createRoom, deleteRoom, LIVEKIT_URL };
+/**
+ * List participants in a LiveKit room.
+ * Returns empty array if the room doesn't exist.
+ */
+async function listParticipants(roomName) {
+  try {
+    const participants = await roomService.listParticipants(roomName);
+    return participants || [];
+  } catch (err) {
+    // Room doesn't exist or API error — treat as empty
+    return [];
+  }
+}
+
+/**
+ * Check if a teacher is actively connected in a LiveKit room.
+ * Teacher identities are prefixed with 'teacher-'.
+ */
+async function isTeacherInRoom(roomName) {
+  const participants = await listParticipants(roomName);
+  return participants.some(p => p.identity && p.identity.startsWith('teacher-'));
+}
+
+module.exports = { generateToken, createRoom, deleteRoom, listParticipants, isTeacherInRoom, LIVEKIT_URL };

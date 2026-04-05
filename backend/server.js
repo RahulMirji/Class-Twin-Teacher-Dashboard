@@ -10,7 +10,7 @@ const SessionManager = require('./sessionManager');
 const { processRound } = require('./riskEngine');
 const { getAIInsight } = require('./aiService');
 const { supabase, createUserClient } = require('./supabaseClient');
-const { generateToken, createRoom, deleteRoom, LIVEKIT_URL } = require('./livekitService');
+const { generateToken, createRoom, deleteRoom, isTeacherInRoom, LIVEKIT_URL } = require('./livekitService');
 const { handleTwinChat, getClassroomState } = require('./twinChatService');
 
 const app = express();
@@ -99,7 +99,7 @@ app.get('/api/dashboard/stats', authMiddleware, async (req, res) => {
     const userClient = createUserClient(req.accessToken);
     const { data: sessions, error } = await userClient
       .from('sessions')
-      .select('*, session_students(count)')
+      .select('*, session_students(student_name, joined_at)')
       .eq('created_by', req.user.id)
       .order('created_at', { ascending: false })
       .limit(20);
@@ -126,11 +126,11 @@ app.get('/api/dashboard/stats', authMiddleware, async (req, res) => {
 
       if (sessionLogs.length > 0) {
         avgConfidence = sessionLogs.reduce((sum, l) => sum + (l.confidence || 0), 0) / sessionLogs.length;
-        
+
         const bucketCount = 10;
         const bars = new Array(bucketCount).fill(0);
         const counts = new Array(bucketCount).fill(0);
-        
+
         const startTime = new Date(sessionLogs[0].created_at).getTime();
         const endTime = new Date(sessionLogs[sessionLogs.length - 1].created_at).getTime();
         const duration = endTime - startTime;
@@ -145,7 +145,7 @@ app.get('/api/dashboard/stats', authMiddleware, async (req, res) => {
 
         // Convert the 0.0-1.0 confidence score into 0-100 bars
         heatmapBars = bars.map((sum, i) => counts[i] > 0 ? Math.round((sum / counts[i]) * 100) : 0);
-        
+
         heatmapLabel = 'Engagement Profile';
         rating = `${(avgConfidence * 5).toFixed(1)} Impact Score`;
         highlighted = avgConfidence > 0.7;
@@ -180,7 +180,7 @@ app.get('/api/dashboard/oracle', authMiddleware, async (req, res) => {
       .limit(3);
 
     if (!sessions || sessions.length === 0) {
-        return res.json({ message: "No recent sessions to analyze. Start a class to get insights!", score: 0 });
+      return res.json({ message: "No recent sessions to analyze. Start a class to get insights!", score: 0 });
     }
 
     const sessionIds = sessions.map(s => s.id);
@@ -193,12 +193,12 @@ app.get('/api/dashboard/oracle', authMiddleware, async (req, res) => {
     let totalLogs = 0;
 
     const summaryStr = sessions.map(s => {
-       const sLogs = logs.filter(l => l.session_id === s.id);
-       const validConf = sLogs.filter(l => typeof l.confidence === 'number');
-       totalLogs += validConf.length;
-       totalConf += validConf.reduce((sum, l) => sum + l.confidence, 0);
-       const avgConf = validConf.length ? (validConf.reduce((sum, l) => sum + l.confidence, 0) / validConf.length * 100).toFixed(0) : 0;
-       return `Topic: ${s.topic}\nAvg Confidence: ${avgConf}%`;
+      const sLogs = logs.filter(l => l.session_id === s.id);
+      const validConf = sLogs.filter(l => typeof l.confidence === 'number');
+      totalLogs += validConf.length;
+      totalConf += validConf.reduce((sum, l) => sum + l.confidence, 0);
+      const avgConf = validConf.length ? (validConf.reduce((sum, l) => sum + l.confidence, 0) / validConf.length * 100).toFixed(0) : 0;
+      return `Topic: ${s.topic}\nAvg Confidence: ${avgConf}%`;
     }).join('\n\n');
 
     let baseScore = totalLogs > 0 ? Math.round((totalConf / totalLogs) * 100) : 75;
@@ -213,14 +213,14 @@ app.get('/api/dashboard/oracle', authMiddleware, async (req, res) => {
           model: 'gemini-2.0-flash',
           contents: `Act as an expert teaching assistant. Based on this recent class data:\n${summaryStr}\nProvide a single insightful sentence (max 25 words) advising the teacher on their overall class performance or what missing concept they might need to revisit. Also provide an overall "Cognitive Sync" score out of 100 as an integer based on the average confidences, adjusting higher or lower by up to 10 points depending on recent trends. Return valid JSON only: { "message": "...", "score": 85 }.`
         });
-        
+
         const textResp = response.text;
         const cleaned = textResp.replace(/```(json)?/g, '').trim();
         const parsed = JSON.parse(cleaned);
         insightMessage = parsed.message || insightMessage;
         score = parsed.score || score;
       } catch (e) {
-         console.log("Error invoking gemini for oracle", e.message);
+        console.log("Error invoking gemini for oracle", e.message);
       }
     }
 
@@ -233,9 +233,10 @@ app.get('/api/dashboard/oracle', authMiddleware, async (req, res) => {
 
 // Create a new session (authenticated)
 app.post('/api/sessions', authMiddleware, async (req, res) => {
-  const { topic, totalRounds } = req.body;
+  const { topic, subject, totalRounds } = req.body;
   const session = await sessionManager.createSession({
     topic: topic || 'General',
+    subject: subject || 'General',
     teacherId: req.user.id,
     totalRounds: totalRounds || 8,
     questions: SAMPLE_QUESTIONS
@@ -248,6 +249,7 @@ app.post('/api/sessions', authMiddleware, async (req, res) => {
       id: session.id,
       join_code: session.code,
       topic: session.topic,
+      subject: subject || 'General',
       created_by: req.user.id,
       total_rounds: session.totalRounds,
       current_round: session.currentRound,
@@ -267,15 +269,49 @@ app.post('/api/sessions', authMiddleware, async (req, res) => {
 });
 
 // List Live Sessions (for student app polling) — MUST be before /:code wildcard
+// Verifies the teacher is actually connected in the LiveKit room before returning as live
 app.get('/api/sessions/live', async (req, res) => {
-  const { data, error } = await supabase
-    .from('sessions')
-    .select('id, join_code, topic, livekit_room_name, stream_started_at, created_by')
-    .eq('is_streaming', true)
-    .eq('status', 'active');
+  try {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('id, join_code, topic, subject, livekit_room_name, stream_started_at, created_by')
+      .eq('is_streaming', true)
+      .eq('status', 'active');
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data || []);
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data || data.length === 0) return res.json([]);
+
+    // Verify each session has a teacher actually connected in the LiveKit room
+    const verified = [];
+    for (const session of data) {
+      if (!session.livekit_room_name) {
+        // No room name — stale record, auto-clean
+        await supabase.from('sessions').update({
+          is_streaming: false, status: 'ended',
+          livekit_room_name: null, stream_started_at: null,
+        }).eq('id', session.id);
+        console.log(`🧹 Auto-cleaned stale session (no room): ${session.join_code}`);
+        continue;
+      }
+
+      const teacherPresent = await isTeacherInRoom(session.livekit_room_name);
+      if (teacherPresent) {
+        verified.push(session);
+      } else {
+        // Teacher left — auto-clean this session
+        await supabase.from('sessions').update({
+          is_streaming: false, status: 'ended',
+          livekit_room_name: null, stream_started_at: null,
+        }).eq('id', session.id);
+        console.log(`🧹 Auto-cleaned orphaned session (teacher left): ${session.join_code} / ${session.topic}`);
+      }
+    }
+
+    res.json(verified);
+  } catch (err) {
+    console.error('Error in /sessions/live:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Get session by code (public — students use this to join)
@@ -283,6 +319,67 @@ app.get('/api/sessions/:code', (req, res) => {
   const session = sessionManager.getSession(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   res.json(session);
+});
+
+// ═══════════════════════════════════════════════
+// Teacher Chat Message — insert + broadcast to students
+// ═══════════════════════════════════════════════
+app.post('/api/sessions/:id/teacher-message', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { message } = req.body;
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  try {
+    const userClient = createUserClient(req.accessToken);
+
+    // Verify session ownership
+    const { data: sessionRow, error: fetchErr } = await userClient
+      .from('sessions')
+      .select('id, join_code')
+      .eq('id', id)
+      .eq('created_by', req.user.id)
+      .single();
+
+    if (fetchErr || !sessionRow) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Insert using service key (bypasses RLS, student_id stays null for teacher)
+    const { data: inserted, error: insertErr } = await supabase
+      .from('chat_messages')
+      .insert({
+        session_id: id,
+        student_name: 'Teacher',
+        message_text: message.trim(),
+        is_anonymous: false,
+        is_teacher: true,
+        student_id: null,
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      console.error('Teacher message insert error:', insertErr);
+      return res.status(500).json({ error: insertErr.message });
+    }
+
+    // Also emit via socket so mobile students receive it instantly
+    io.to(`session-${sessionRow.join_code}`).emit('teacher_message', {
+      id: inserted.id,
+      sessionId: id,
+      message: inserted.message_text,
+      sentAt: inserted.sent_at,
+    });
+
+    console.log(`📢 Teacher message sent to session-${sessionRow.join_code}: "${message.trim()}"`);
+    res.json({ success: true, message: inserted });
+  } catch (err) {
+    console.error('Teacher message error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Resolve student names from UUIDs (used by teacher dashboard for LiveKit participants)
@@ -631,7 +728,7 @@ app.post('/api/sessions/:id/start-stream', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const userClient = createUserClient(req.accessToken);
 
-  // Fetch session from Supabase to get join_code & topic
+  // Fetch session from Supabase to get join_code, topic & subject
   const { data: sessionRow, error: fetchErr } = await userClient
     .from('sessions')
     .select('*')
@@ -675,6 +772,7 @@ app.post('/api/sessions/:id/start-stream', authMiddleware, async (req, res) => {
       sessionId: id,
       joinCode: sessionRow.join_code,
       topic: sessionRow.topic,
+      subject: sessionRow.subject || 'General',
       livekitRoomName: roomName,
       livekitUrl: LIVEKIT_URL,
       streamStartedAt: new Date().toISOString(),
@@ -684,6 +782,47 @@ app.post('/api/sessions/:id/start-stream', authMiddleware, async (req, res) => {
     res.json({ token, url: LIVEKIT_URL, roomName });
   } catch (err) {
     console.error('Start stream error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════
+// Rejoin Stream — teacher gets a fresh token for an already-live room (page refresh / navigation)
+// ═══════════════════════════════════════════════
+
+app.post('/api/sessions/:id/rejoin-stream', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const userClient = createUserClient(req.accessToken);
+
+  // 1. Fetch session and check if it's actually streaming
+  const { data: sessionRow, error: fetchErr } = await userClient
+    .from('sessions')
+    .select('id, join_code, is_streaming, livekit_room_name, status')
+    .eq('id', id)
+    .eq('created_by', req.user.id)
+    .single();
+
+  if (fetchErr || !sessionRow) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  if (!sessionRow.is_streaming || !sessionRow.livekit_room_name) {
+    return res.status(400).json({ error: 'Session is not currently streaming' });
+  }
+
+  try {
+    // 2. Generate a fresh teacher token for the existing room
+    const teacherIdentity = `teacher-${req.user.id}`;
+    const token = await generateToken({
+      roomName: sessionRow.livekit_room_name,
+      identity: teacherIdentity,
+      isTeacher: true,
+    });
+
+    console.log(`🔄 Teacher rejoined stream: ${sessionRow.livekit_room_name} for session ${sessionRow.join_code}`);
+    res.json({ token, url: LIVEKIT_URL, roomName: sessionRow.livekit_room_name });
+  } catch (err) {
+    console.error('Rejoin stream error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -700,6 +839,7 @@ app.post('/api/sessions/:id/stop-stream', authMiddleware, async (req, res) => {
     .from('sessions')
     .select('join_code, livekit_room_name')
     .eq('id', id)
+    .eq('created_by', req.user.id)
     .single();
 
   if (fetchErr || !sessionRow) {
@@ -707,16 +847,37 @@ app.post('/api/sessions/:id/stop-stream', authMiddleware, async (req, res) => {
   }
 
   try {
+    // 1. Delete the LiveKit room on the server — kicks all participants
     if (sessionRow.livekit_room_name) {
-      await deleteRoom(sessionRow.livekit_room_name);
+      try {
+        await deleteRoom(sessionRow.livekit_room_name);
+        console.log(`🗑️ LiveKit room deleted: ${sessionRow.livekit_room_name}`);
+      } catch (roomErr) {
+        // Log but don't fail — room may already have been cleaned up by timeout
+        console.warn('LiveKit deleteRoom warning (non-fatal):', roomErr.message);
+      }
     }
 
+    // 2. Update Supabase — clear all streaming fields completely
     await userClient.from('sessions').update({
       is_streaming: false,
+      livekit_room_name: null,
+      stream_started_at: null,
       status: 'ended',
     }).eq('id', id);
 
+    // 3. Update in-memory session manager if present
+    const inMemSession = sessionManager.getSession(sessionRow.join_code);
+    if (inMemSession) {
+      inMemSession.isStreaming = false;
+      inMemSession.livekitRoomName = null;
+      inMemSession.status = 'ended';
+    }
+
+    // 4. Broadcast to all student sockets
     io.emit('session_ended_broadcast', { joinCode: sessionRow.join_code });
+
+    console.log(`🛑 Stream ended: session ${sessionRow.join_code}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Stop stream error:', err);
@@ -787,60 +948,96 @@ app.post('/api/sessions/:id/generate-quiz', authMiddleware, async (req, res) => 
 
     const nextRound = (existingQs && existingQs.length > 0) ? existingQs[0].round_number + 1 : 1;
 
-    // Persist questions to DB
-    const questionRows = questions.map((q, i) => ({
+    console.log(`✅ Quiz generated (${source}): ${questions.length} questions, next round ${nextRound}`);
+
+    // Build response WITHOUT DB IDs. Do NOT persist yet.
+    const quizData = questions.map((q, i) => ({
+      id: `temp-${Date.now()}-${i}`,
+      question: q.question,
+      options: q.options,
+      correctIndex: parseInt(q.correctIndex, 10),
+      concept: q.concept || topic,
+      roundNumber: nextRound,
+      timeLimit: 30,
+    }));
+
+    // NOTE: Quiz is NOT auto-sent — teacher presses "Send to Students" explicitly
+    res.json({
+      questions: quizData,
+      roundNumber: nextRound,
+      source,
+      sessionCode: sessionRow.join_code,
+    });
+  } catch (err) {
+    console.error('Generate quiz error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════
+// Send Quiz to Students — teacher explicitly pushes quiz
+// ═══════════════════════════════════════════════
+app.post('/api/sessions/:id/send-quiz', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { roundNumber, questions } = req.body;
+
+  if (!roundNumber || !questions || !Array.isArray(questions)) {
+    return res.status(400).json({ error: 'roundNumber and questions array are required' });
+  }
+
+  try {
+    const userClient = createUserClient(req.accessToken);
+
+    // Verify ownership + get join_code
+    const { data: sessionRow, error: fetchErr } = await userClient
+      .from('sessions')
+      .select('id, join_code')
+      .eq('id', id)
+      .eq('created_by', req.user.id)
+      .single();
+
+    if (fetchErr || !sessionRow) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // 1. Persist questions to DB since they weren't saved during generation
+    const questionRows = questions.map(q => ({
       session_id: id,
-      round_number: nextRound,
+      round_number: roundNumber,
       question_text: q.question,
       options: q.options,
       correct_option: String(q.correctIndex),
+      time_limit_seconds: q.timeLimit || 30,
     }));
 
     const { data: insertedQuestions, error: insertErr } = await supabase
       .from('questions')
       .insert(questionRows)
-      .select();
+      .select('id, question_text, options, correct_option, round_number, time_limit_seconds');
 
-    if (insertErr) {
-      console.error('Failed to persist questions:', insertErr);
-      return res.status(500).json({ error: 'Failed to save questions' });
+    if (insertErr || !insertedQuestions?.length) {
+      console.error('Failed to save questions during send-quiz:', insertErr);
+      return res.status(500).json({ error: 'Failed to persist questions before sending' });
     }
 
-    console.log(`✅ Quiz generated (${source}): ${insertedQuestions.length} questions, round ${nextRound}`);
-
-    // Build response with DB IDs
-    const quizData = insertedQuestions.map((dbQ, i) => ({
-      id: dbQ.id,
-      question: dbQ.question_text,
-      options: dbQ.options,
-      correctIndex: parseInt(dbQ.correct_option, 10),
-      concept: questions[i]?.concept || topic,
-      roundNumber: nextRound,
-      timeLimit: 30,
-    }));
-
-    // Emit quiz to all students in the session room
     const sessionCode = sessionRow.join_code;
-    io.to(`session-${sessionCode}`).emit('quiz_questions', {
+    const payload = {
       sessionId: id,
-      roundNumber: nextRound,
-      questions: quizData.map(q => ({
+      roundNumber,
+      questions: insertedQuestions.map(q => ({
         id: q.id,
-        question: q.question,
+        question: q.question_text,
         options: q.options,
-        timeLimit: q.timeLimit,
+        timeLimit: q.time_limit_seconds || 30,
       })),
-    });
+    };
 
-    console.log(`📤 Quiz pushed to students in session-${sessionCode}`);
+    io.to(`session-${sessionCode}`).emit('quiz_questions', payload);
+    console.log(`📤 Quiz round ${roundNumber} pushed to students in session-${sessionCode} (${questions.length} questions)`);
 
-    res.json({
-      questions: quizData,
-      roundNumber: nextRound,
-      source,
-    });
+    res.json({ success: true, studentCount: io.sockets.adapter.rooms.get(`session-${sessionCode}`)?.size || 0 });
   } catch (err) {
-    console.error('Generate quiz error:', err);
+    console.error('Send quiz error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -965,13 +1162,45 @@ io.on('connection', (socket) => {
   });
 
   // Teacher joins an existing session room (without creating a new session)
-  socket.on('join_teacher_room', (data, callback) => {
+  socket.on('join_teacher_room', async (data, callback) => {
     const { code } = data;
     socket.join(`teacher-${code}`);
     socket.sessionCode = code;
     socket.role = 'teacher';
     console.log(`🏫 Teacher socket ${socket.id} joined room teacher-${code}`);
-    if (callback) callback({ success: true });
+
+    try {
+      // Find session ID from DB
+      const { data: sessionRow } = await supabase.from('sessions').select('id').eq('join_code', code).single();
+      let dbStudents = [];
+      if (sessionRow) {
+        const { data: sStudents } = await supabase.from('session_students').select('id, student_name, joined_at').eq('session_id', sessionRow.id);
+        if (sStudents) {
+          dbStudents = sStudents.map(s => ({
+            id: s.id,
+            name: s.student_name,
+            status: 'neutral',
+          }));
+        }
+      }
+
+      const session = sessionManager.getSession(code);
+      let memStudents = session ? Object.values(session.students || {}) : [];
+
+      // Merge dbStudents and memStudents
+      const allStudentsMap = new Map();
+      memStudents.forEach(ms => allStudentsMap.set(ms.name, ms));
+      dbStudents.forEach(ds => {
+        if (!allStudentsMap.has(ds.name)) {
+          allStudentsMap.set(ds.name, ds);
+        }
+      });
+
+      if (callback) callback({ success: true, students: Array.from(allStudentsMap.values()) });
+    } catch (err) {
+      console.log('Error fetching students for teacher room join', err);
+      if (callback) callback({ success: true });
+    }
   });
 
   // Student joins session
@@ -1055,7 +1284,7 @@ io.on('connection', (socket) => {
 
     // Process risk engine and send update to teacher
     const riskData = processRound(session.students);
-    
+
     const twinUpdate = {
       students: Object.values(session.students).map(s => ({
         id: s.id,
@@ -1199,6 +1428,39 @@ io.on('connection', (socket) => {
               isCorrect: String(answer) === question.correct_option,
             },
           });
+
+          // Fetch leaderboard data for the entire session
+          const { data: sessionResponses } = await supabase
+            .from('student_responses')
+            .select('response, responded_at, session_students!student_responses_student_id_fkey(student_name), questions!student_responses_question_id_fkey(correct_option)')
+            .eq('session_id', sessionId);
+
+          const scoreBoard = {};
+          if (sessionResponses) {
+            sessionResponses.forEach(r => {
+              const studentName = r.session_students?.student_name || 'Unknown';
+              if (!scoreBoard[studentName]) scoreBoard[studentName] = { name: studentName, score: 0, lastCorrectTime: 0 };
+
+              if (r.questions?.correct_option === String(r.response)) { // Ensure string matching
+                scoreBoard[studentName].score += 10;
+                // Track fastest completion time for tie-breakers
+                const ansTime = new Date(r.responded_at || 0).getTime();
+                if (ansTime > scoreBoard[studentName].lastCorrectTime) {
+                  scoreBoard[studentName].lastCorrectTime = ansTime;
+                }
+              }
+            });
+          }
+
+          const leaderboard = Object.values(scoreBoard)
+            .sort((a, b) => {
+              if (b.score !== a.score) return b.score - a.score;
+              // Tie-breaker: who answered faster (earlier timestamp)
+              return a.lastCorrectTime - b.lastCorrectTime;
+            })
+            .map(({ name, score }) => ({ name, score }));
+
+          io.to(`teacher-${sess.join_code}`).emit('leaderboard_update', leaderboard);
         }
       }
     } catch (err) {
@@ -1215,24 +1477,53 @@ io.on('connection', (socket) => {
 // Twin Insight Engine API
 // ═══════════════════════════════════════════════
 
-// POST /api/twin-chat — RAG-powered chat with Gemini
+// POST /api/twin-chat — Proxies to Supabase Edge Function (has GEMINI_API_KEY)
 app.post('/api/twin-chat', authMiddleware, async (req, res) => {
   try {
     const { message, mode, conversationHistory } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    const userClient = createUserClient(req.accessToken);
-    const result = await handleTwinChat({
-      message,
-      mode: mode || 'chat',
-      conversationHistory: conversationHistory || [],
-      userClient,
-      teacherId: req.user.id,
+    // Simulation mode still runs locally (no Gemini needed)
+    if (mode === 'simulate') {
+      const userClient = createUserClient(req.accessToken);
+      const result = await handleTwinChat({
+        message,
+        mode: 'simulate',
+        conversationHistory: conversationHistory || [],
+        userClient,
+        teacherId: req.user.id,
+      });
+      return res.json(result);
+    }
+
+    // For chat mode — proxy to the Supabase Edge Function which has GEMINI_API_KEY
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const edgeFnUrl = `${SUPABASE_URL}/functions/v1/twin-chat`;
+
+    console.log(`[TwinChat] Proxying to edge fn: ${edgeFnUrl}`);
+    console.log(`[TwinChat] Token prefix: ${req.accessToken?.slice(0, 20)}...`);
+
+    const edgeRes = await fetch(edgeFnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${req.accessToken}`,
+        'apikey': process.env.SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ message, conversationHistory: conversationHistory || [] }),
     });
 
+    const edgeBody = await edgeRes.text();
+    console.log(`[TwinChat] Edge fn status: ${edgeRes.status}, body: ${edgeBody.slice(0, 300)}`);
+
+    if (!edgeRes.ok) {
+      return res.status(edgeRes.status).json({ error: 'Edge Function error', detail: edgeBody });
+    }
+
+    const result = JSON.parse(edgeBody);
     res.json(result);
   } catch (err) {
-    console.error('Twin chat error:', err);
+    console.error('[TwinChat] Proxy error:', err);
     res.status(500).json({ error: err.message });
   }
 });

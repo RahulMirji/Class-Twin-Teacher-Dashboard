@@ -1,7 +1,7 @@
 // Twin Insight Engine — Chat Service with RAG Context, Simulation & Nudges
 // Powers the "Cognitive Orchestrator" frontend
 
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenAI, Type } = require('@google/genai');
 const { supabase, createUserClient } = require('./supabaseClient');
 
 // ═══════════════════════════════════════════════
@@ -269,12 +269,159 @@ function executeNudge(context) {
 
 
 // ═══════════════════════════════════════════════
-// 4. MAIN CHAT HANDLER — Gemini with RAG
+// 4. LLM TOOLS (Function Calling)
+// ═══════════════════════════════════════════════
+
+const twinTools = [{
+  functionDeclarations: [
+    {
+      name: 'get_class_summary',
+      description: 'Fetch the overall performance summary for the whole class, including average score, risk distribution, and completion rates.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {},
+      },
+    },
+    {
+      name: 'get_student_details',
+      description: 'Fetch detailed performance and engagement metrics for a specific student.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          student_name: {
+            type: Type.STRING,
+            description: 'The exact or partial name of the student to look up.',
+          },
+        },
+        required: ['student_name'],
+      },
+    },
+    {
+      name: 'get_struggling_students',
+      description: 'Retrieve a list of students who are struggling, marked at high risk, or have the lowest comprehension scores.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          limit: {
+            type: Type.INTEGER,
+            description: 'Maximum number of students to return (e.g., 5).',
+          },
+        },
+      },
+    },
+  ]
+}];
+
+async function dbGetClassSummary(userClient, sessionIds) {
+  if (sessionIds.length === 0) return { error: 'No active sessions found for this teacher.' };
+  
+  const { data: students } = await userClient
+    .from('session_students')
+    .select('comprehension, risk, total_correct, total_answered')
+    .in('session_id', sessionIds);
+
+  if (!students || students.length === 0) return { status: 'No students found in recent sessions.' };
+
+  let totalComprehension = 0, compCount = 0;
+  let totalCorrect = 0, totalAnswered = 0;
+  const riskCounts = { HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
+
+  for (const s of students) {
+    if (s.comprehension != null) { totalComprehension += s.comprehension; compCount++; }
+    if (s.total_correct) totalCorrect += s.total_correct;
+    if (s.total_answered) totalAnswered += s.total_answered;
+    const r = s.risk || 'UNKNOWN';
+    riskCounts[r] = (riskCounts[r] || 0) + 1;
+  }
+
+  return {
+    total_students: students.length,
+    average_comprehension: compCount > 0 ? Math.round(totalComprehension / compCount) : null,
+    overall_quiz_accuracy: totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
+    risk_distribution: riskCounts,
+  };
+}
+
+async function dbGetStudentDetails(userClient, sessionIds, studentName) {
+  if (sessionIds.length === 0) return { error: 'No active sessions found.' };
+
+  const { data: students } = await userClient
+    .from('session_students')
+    .select('id, student_name, comprehension, risk, total_correct, total_answered')
+    .in('session_id', sessionIds)
+    .ilike('student_name', `%${studentName}%`)
+    .limit(3);
+
+  if (!students || students.length === 0) return { status: `No student found matching "${studentName}".` };
+  
+  const results = [];
+  for (const s of students) {
+    // Get their recent engagement
+    const { data: logs } = await userClient
+      .from('engagement_logs')
+      .select('engagement_state, confidence')
+      .eq('student_id', s.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+      
+    let avgConfidence = null;
+    let dominantState = 'unknown';
+    if (logs && logs.length > 0) {
+      let sum = 0, count = 0;
+      const states = {};
+      for (const l of logs) {
+        if (l.confidence != null) { sum += l.confidence; count++; }
+        if (l.engagement_state) states[l.engagement_state] = (states[l.engagement_state] || 0) + 1;
+      }
+      avgConfidence = count > 0 ? Math.round(sum / count) : null;
+      dominantState = Object.entries(states).sort((a,b) => b[1] - a[1])[0]?.[0] || 'unknown';
+    }
+
+    results.push({
+      name: s.student_name,
+      comprehension: s.comprehension,
+      risk_level: s.risk,
+      quiz_accuracy: s.total_answered > 0 ? Math.round((s.total_correct / s.total_answered) * 100) + '%' : 'N/A',
+      recent_attention_score: avgConfidence,
+      recent_engagement_state: dominantState
+    });
+  }
+
+  return results;
+}
+
+async function dbGetStrugglingStudents(userClient, sessionIds, limit = 5) {
+  if (sessionIds.length === 0) return { error: 'No active sessions found.' };
+
+  const { data: students } = await userClient
+    .from('session_students')
+    .select('student_name, comprehension, risk, total_correct, total_answered')
+    .in('session_id', sessionIds)
+    .or('risk.eq.HIGH,comprehension.lt.50')
+    .order('comprehension', { ascending: true, nullsFirst: false })
+    .limit(limit);
+
+  if (!students || students.length === 0) return { status: 'No struggling students found! Everyone seems to be doing fine.' };
+
+  return students.map(s => ({
+    name: s.student_name,
+    comprehension: s.comprehension,
+    risk_level: s.risk,
+    quiz_accuracy: s.total_answered > 0 ? Math.round((s.total_correct / s.total_answered) * 100) + '%' : 'N/A'
+  }));
+}
+
+
+// ═══════════════════════════════════════════════
+// 5. MAIN CHAT HANDLER — Gemini with RAG & Tools
 // ═══════════════════════════════════════════════
 
 async function handleTwinChat({ message, mode, conversationHistory, userClient, teacherId }) {
   // Step 1: Fetch live classroom context (RAG)
   const context = await fetchClassroomContext(userClient, teacherId);
+
+  // Extract sessionIds for our tools
+  const sessionIds = context.raw?.sessions?.map(s => s.id) || [];
 
   // Step 2: Handle simulation mode
   if (mode === 'simulate') {
@@ -308,6 +455,7 @@ async function handleTwinChat({ message, mode, conversationHistory, userClient, 
 - Use the student names when available.
 - Be concise (2-4 sentences max) unless asked for detail.
 - If asked about nudges/alerts, confirm the action was taken.
+- If the teacher asks about specific students, struggling students, or the class summary, USE YOUR TOOLS to fetch that data from the database.
 
 ## Current Classroom Twin State:
 ${context.summary}
@@ -341,10 +489,57 @@ Respond naturally as an AI teaching co-pilot. Reference specific data points. If
       // Add current message
       messages.push({ role: 'user', parts: [{ text: message }] });
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
-        contents: messages,
-      });
+      // Function Calling Loop
+      let response;
+      let callCount = 0;
+      const MAX_CALLS = 3;
+
+      while (callCount < MAX_CALLS) {
+        response = await ai.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents: messages,
+          tools: twinTools,
+        });
+
+        // Check if Gemini wants to call a tool
+        if (response.functionCalls && response.functionCalls.length > 0) {
+          const call = response.functionCalls[0];
+          let toolResult;
+
+          console.log(`🛠️ Twin Engine executing tool: ${call.name}`, call.args);
+
+          if (call.name === 'get_class_summary') {
+            toolResult = await dbGetClassSummary(userClient, sessionIds);
+          } else if (call.name === 'get_student_details') {
+            toolResult = await dbGetStudentDetails(userClient, sessionIds, call.args.student_name);
+          } else if (call.name === 'get_struggling_students') {
+            toolResult = await dbGetStrugglingStudents(userClient, sessionIds, call.args.limit || 5);
+          } else {
+            toolResult = { error: 'Unknown function' };
+          }
+
+          // Convert the tool result to the exact format Gemini expects
+          // When using @google/genai, we must push the function response block:
+          messages.push({
+            role: 'model',
+            parts: [{ functionCall: call }]
+          });
+          messages.push({
+            role: 'user',
+            parts: [{
+              functionResponse: {
+                name: call.name,
+                response: toolResult
+              }
+            }]
+          });
+
+          callCount++;
+        } else {
+          // No more function calls, we have the final text
+          break;
+        }
+      }
 
       const reply = response.text || 'I encountered an issue processing your request.';
 
@@ -356,6 +551,7 @@ Respond naturally as an AI teaching co-pilot. Reference specific data points. If
           dataPoints: context.stats?.dataPoints || 0,
           contextUsed: context.hasData,
           model: 'gemini-2.0-flash',
+          toolCalls: callCount,
         },
       };
     } catch (err) {
