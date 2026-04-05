@@ -59,25 +59,23 @@ export default function Materials() {
 
   const statusStyle = (status) => {
     switch (status) {
-      case 'Published': return { background: 'rgba(74, 225, 118, 0.1)', color: '#4ae176', border: '1px solid rgba(74, 225, 118, 0.2)' };
-      case 'Draft': return { background: 'rgba(255, 185, 95, 0.1)', color: '#ffb95f', border: '1px solid rgba(255, 185, 95, 0.2)' };
-      case 'Review': return { background: 'rgba(128, 131, 255, 0.1)', color: '#c0c1ff', border: '1px solid rgba(128, 131, 255, 0.2)' };
+      case 'Published': return { background: '#E8F5EE', color: '#1A5C3B', border: '1px solid rgba(26, 92, 59, 0.15)' };
+      case 'Draft': return { background: '#FEF9C3', color: '#92400E', border: '1px solid rgba(146, 64, 14, 0.15)' };
+      case 'Review': return { background: '#EFF6FF', color: '#1D4ED8', border: '1px solid rgba(29, 78, 216, 0.15)' };
       default: return {};
     }
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#F5F6FA', fontFamily: "'Inter', sans-serif" }}>
       <Sidebar />
-      <main style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
+      <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
         {/* Header */}
         <div style={{ marginBottom: '32px' }}>
           <h1 className="font-headline" style={{
-            fontSize: '32px', fontWeight: 800, letterSpacing: '-0.03em',
-            background: 'linear-gradient(to right, #e0e2ea, #c0c1ff)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            fontSize: '28px', fontWeight: 800, letterSpacing: '-0.02em', color: '#111827',
           }}>Teaching Materials</h1>
-          <p style={{ color: 'var(--on-surface-variant)', fontSize: '15px', marginTop: '8px' }}>
+          <p style={{ color: '#6B7280', fontSize: '14px', marginTop: '6px' }}>
             Organize, create, and share your lesson plans and resources.
           </p>
         </div>
@@ -91,8 +89,9 @@ export default function Materials() {
             { label: 'AI Generated', value: '6', icon: 'auto_awesome', color: '#c0c1ff' },
           ].map((stat, i) => (
             <div key={i} style={{
-              backgroundColor: 'var(--surface-container)', borderRadius: '16px',
-              padding: '20px', border: '1px solid rgba(255,255,255,0.04)',
+              backgroundColor: '#FFFFFF', borderRadius: '16px',
+              padding: '20px', border: '1px solid #EAECF0',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
               display: 'flex', alignItems: 'center', gap: '16px',
             }}>
               <div style={{
@@ -103,8 +102,8 @@ export default function Materials() {
                 <span className="material-symbols-outlined filled" style={{ color: stat.color, fontSize: '22px' }}>{stat.icon}</span>
               </div>
               <div>
-                <div className="font-headline" style={{ fontSize: '22px', fontWeight: 700, color: 'var(--on-surface)' }}>{stat.value}</div>
-                <div style={{ fontSize: '12px', color: 'var(--on-surface-variant)' }}>{stat.label}</div>
+                <div className="font-headline" style={{ fontSize: '22px', fontWeight: 700, color: '#111827' }}>{stat.value}</div>
+                <div style={{ fontSize: '12px', color: '#6B7280' }}>{stat.label}</div>
               </div>
             </div>
           ))}
@@ -115,10 +114,10 @@ export default function Materials() {
           <div style={{
             flex: 1, minWidth: '260px',
             display: 'flex', alignItems: 'center', gap: '10px',
-            backgroundColor: 'var(--surface-container)', borderRadius: '12px',
-            padding: '10px 16px', border: '1px solid rgba(255,255,255,0.05)',
+            backgroundColor: '#FFFFFF', borderRadius: '12px',
+            padding: '10px 16px', border: '1px solid #EAECF0',
           }}>
-            <span className="material-symbols-outlined" style={{ color: 'var(--on-surface-variant)', fontSize: '20px' }}>search</span>
+            <span className="material-symbols-outlined" style={{ color: '#9CA3AF', fontSize: '20px' }}>search</span>
             <input
               type="text"
               placeholder="Search materials..."
@@ -126,7 +125,7 @@ export default function Materials() {
               onChange={e => setSearchQuery(e.target.value)}
               style={{
                 background: 'none', border: 'none', outline: 'none',
-                color: 'var(--on-surface)', fontSize: '14px', width: '100%',
+                color: '#111827', fontSize: '14px', width: '100%',
                 fontFamily: "'Inter', sans-serif",
               }}
             />
@@ -134,9 +133,9 @@ export default function Materials() {
           <button style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             padding: '10px 20px', borderRadius: '12px', border: 'none',
-            background: 'linear-gradient(135deg, #8083ff, #494bd6)',
+            background: 'linear-gradient(135deg, #1A5C3B, #2D7A52)',
             color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer',
-            boxShadow: '0 8px 20px rgba(128, 131, 255, 0.25)',
+            boxShadow: '0 4px 14px rgba(26, 92, 59, 0.25)',
           }}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
             New Material
@@ -145,28 +144,28 @@ export default function Materials() {
 
         {/* Filter Chips */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', fontWeight: 600, alignSelf: 'center', marginRight: '4px' }}>TYPE:</span>
+          <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 600, alignSelf: 'center', marginRight: '4px' }}>TYPE:</span>
           {typeFilters.map(f => (
             <button key={f} onClick={() => setActiveType(f)} style={{
               padding: '6px 14px', borderRadius: '20px', border: 'none',
               fontSize: '12px', fontWeight: 500, cursor: 'pointer',
               transition: 'all 0.2s',
-              background: activeType === f ? 'rgba(128, 131, 255, 0.15)' : 'rgba(224, 226, 234, 0.04)',
-              color: activeType === f ? '#c0c1ff' : 'var(--on-surface-variant)',
-              border: activeType === f ? '1px solid rgba(192, 193, 255, 0.2)' : '1px solid rgba(255,255,255,0.04)',
+              background: activeType === f ? '#E8F5EE' : '#F9FAFB',
+              color: activeType === f ? '#1A5C3B' : '#6B7280',
+              border: activeType === f ? '1px solid rgba(26,92,59,0.2)' : '1px solid #EAECF0',
             }}>{f}</button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '28px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', fontWeight: 600, alignSelf: 'center', marginRight: '4px' }}>SUBJECT:</span>
+          <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 600, alignSelf: 'center', marginRight: '4px' }}>SUBJECT:</span>
           {subjectFilters.map(f => (
             <button key={f} onClick={() => setActiveSubject(f)} style={{
               padding: '6px 14px', borderRadius: '20px', border: 'none',
               fontSize: '12px', fontWeight: 500, cursor: 'pointer',
               transition: 'all 0.2s',
-              background: activeSubject === f ? 'rgba(74, 225, 118, 0.12)' : 'rgba(224, 226, 234, 0.04)',
-              color: activeSubject === f ? '#4ae176' : 'var(--on-surface-variant)',
-              border: activeSubject === f ? '1px solid rgba(74, 225, 118, 0.2)' : '1px solid rgba(255,255,255,0.04)',
+              background: activeSubject === f ? '#E8F5EE' : '#F9FAFB',
+              color: activeSubject === f ? '#1A5C3B' : '#6B7280',
+              border: activeSubject === f ? '1px solid rgba(26,92,59,0.2)' : '1px solid #EAECF0',
             }}>{f}</button>
           ))}
         </div>
@@ -179,10 +178,11 @@ export default function Materials() {
               onMouseEnter={() => setHoveredCard(m.id)}
               onMouseLeave={() => setHoveredCard(null)}
               style={{
-                backgroundColor: hoveredCard === m.id ? 'var(--surface-container-high)' : 'var(--surface-container)',
-                borderRadius: '20px', padding: '24px',
-                border: hoveredCard === m.id ? '1px solid rgba(192, 193, 255, 0.12)' : '1px solid rgba(255,255,255,0.04)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '16px', padding: '24px',
+                border: hoveredCard === m.id ? '1px solid #D1D5DB' : '1px solid #EAECF0',
+                boxShadow: hoveredCard === m.id ? '0 8px 24px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s ease',
                 transform: hoveredCard === m.id ? 'translateY(-2px)' : 'none',
                 cursor: 'pointer', position: 'relative', overflow: 'hidden',
               }}
@@ -191,9 +191,7 @@ export default function Materials() {
               <div style={{
                 position: 'absolute', top: '-30px', right: '-30px',
                 width: '100px', height: '100px', borderRadius: '50%',
-                background: `${m.color}10`, filter: 'blur(30px)',
-                opacity: hoveredCard === m.id ? 1 : 0, transition: 'opacity 0.3s',
-                pointerEvents: 'none',
+                display: 'none',
               }} />
 
               <div style={{ position: 'relative', zIndex: 1 }}>
@@ -215,11 +213,11 @@ export default function Materials() {
 
                 {/* Title & description */}
                 <h3 className="font-headline" style={{
-                  fontSize: '17px', fontWeight: 700, color: 'var(--on-surface)',
+                  fontSize: '16px', fontWeight: 700, color: '#111827',
                   marginBottom: '8px', lineHeight: 1.3,
                 }}>{m.title}</h3>
                 <p style={{
-                  fontSize: '13px', color: 'var(--on-surface-variant)',
+                  fontSize: '13px', color: '#6B7280',
                   lineHeight: 1.5, marginBottom: '16px',
                   display: '-webkit-box', WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical', overflow: 'hidden',
@@ -228,7 +226,7 @@ export default function Materials() {
                 {/* Meta row */}
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '16px',
-                  fontSize: '12px', color: 'rgba(224, 226, 234, 0.4)',
+                  fontSize: '12px', color: '#9CA3AF',
                 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>slideshow</span>
@@ -246,14 +244,13 @@ export default function Materials() {
 
                 {/* Divider */}
                 <div style={{
-                  height: '1px', margin: '16px 0',
-                  background: 'linear-gradient(to right, transparent, rgba(192, 193, 255, 0.08), transparent)',
+                  height: '1px', margin: '16px 0', background: '#F3F4F6',
                 }} />
 
                 {/* Bottom row */}
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  fontSize: '11px', color: 'rgba(224, 226, 234, 0.35)',
+                  fontSize: '11px', color: '#9CA3AF',
                 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>calendar_today</span>
@@ -271,8 +268,7 @@ export default function Materials() {
 
         {filtered.length === 0 && (
           <div style={{
-            textAlign: 'center', padding: '80px 20px',
-            color: 'var(--on-surface-variant)',
+            textAlign: 'center', padding: '80px 20px', color: '#6B7280',
           }}>
             <span className="material-symbols-outlined" style={{ fontSize: '56px', opacity: 0.3, marginBottom: '16px', display: 'block' }}>search_off</span>
             <p style={{ fontSize: '16px', fontWeight: 600 }}>No materials found</p>

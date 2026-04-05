@@ -57,30 +57,30 @@ export default function AITutor() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#F5F6FA', fontFamily: "'Inter', sans-serif" }}>
       <Sidebar />
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{
-          padding: '24px 40px 20px',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          padding: '20px 32px',
+          borderBottom: '1px solid #EAECF0',
+          background: '#FFFFFF',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '42px', height: '42px', borderRadius: '14px',
-              background: 'linear-gradient(135deg, rgba(128, 131, 255, 0.15), rgba(108, 92, 231, 0.15))',
+              background: '#E8F5EE',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px solid rgba(192, 193, 255, 0.12)',
+              border: '1px solid rgba(26, 92, 59, 0.15)',
             }}>
-              <span className="material-symbols-outlined filled" style={{ color: '#c0c1ff', fontSize: '22px' }}>smart_toy</span>
+              <span className="material-symbols-outlined filled" style={{ color: '#1A5C3B', fontSize: '22px' }}>smart_toy</span>
             </div>
             <div>
               <h1 className="font-headline" style={{
                 fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em',
-                background: 'linear-gradient(to right, #e0e2ea, #c0c1ff)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                color: '#111827',
               }}>AI Teaching Assistant</h1>
-              <p style={{ fontSize: '12px', color: 'var(--on-surface-variant)' }}>
+              <p style={{ fontSize: '12px', color: '#9CA3AF' }}>
                 Powered by AI • Helps you create, plan, and explain
               </p>
             </div>
@@ -89,7 +89,7 @@ export default function AITutor() {
 
         {/* Messages Area */}
         <div style={{
-          flex: 1, overflowY: 'auto', padding: '24px 40px',
+          flex: 1, overflowY: 'auto', padding: '20px 32px',
           display: 'flex', flexDirection: 'column', gap: '20px',
         }}>
           {messages.map((msg, i) => (
@@ -103,11 +103,11 @@ export default function AITutor() {
                 width: '36px', height: '36px', minWidth: '36px', borderRadius: '12px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: msg.role === 'user'
-                  ? 'linear-gradient(135deg, #4ae176, #2dd573)'
-                  : 'linear-gradient(135deg, #8083ff, #494bd6)',
+                  ? 'linear-gradient(135deg, #1A5C3B, #2D7A52)'
+                  : '#E8F5EE',
                 boxShadow: msg.role === 'user'
-                  ? '0 4px 12px rgba(74, 225, 118, 0.2)'
-                  : '0 4px 12px rgba(128, 131, 255, 0.2)',
+                  ? '0 4px 12px rgba(26, 92, 59, 0.2)'
+                  : 'none',
               }}>
                 <span className="material-symbols-outlined filled" style={{ color: '#fff', fontSize: '18px' }}>
                   {msg.role === 'user' ? 'person' : 'smart_toy'}
@@ -119,13 +119,14 @@ export default function AITutor() {
                 maxWidth: '70%', padding: '16px 20px',
                 borderRadius: msg.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
                 background: msg.role === 'user'
-                  ? 'linear-gradient(135deg, rgba(74, 225, 118, 0.12), rgba(45, 213, 115, 0.08))'
-                  : 'var(--surface-container)',
+                  ? 'linear-gradient(135deg, #1A5C3B, #2D7A52)'
+                  : '#FFFFFF',
                 border: msg.role === 'user'
-                  ? '1px solid rgba(74, 225, 118, 0.15)'
-                  : '1px solid rgba(255,255,255,0.04)',
+                  ? 'none'
+                  : '1px solid #EAECF0',
+                boxShadow: msg.role === 'user' ? 'none' : '0 2px 8px rgba(0,0,0,0.04)',
                 fontSize: '14px', lineHeight: 1.7,
-                color: 'var(--on-surface)',
+                color: msg.role === 'user' ? '#FFFFFF' : '#111827',
                 whiteSpace: 'pre-wrap',
               }}>
                 {msg.content}
@@ -133,47 +134,48 @@ export default function AITutor() {
             </div>
           ))}
 
-          {isTyping && (
+          {isTyping ? (
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
               <div style={{
                 width: '36px', height: '36px', minWidth: '36px', borderRadius: '12px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'linear-gradient(135deg, #8083ff, #494bd6)',
+                background: '#E8F5EE',
               }}>
-                <span className="material-symbols-outlined filled" style={{ color: '#fff', fontSize: '18px' }}>smart_toy</span>
+                <span className="material-symbols-outlined filled" style={{ color: '#1A5C3B', fontSize: '18px' }}>smart_toy</span>
               </div>
               <div style={{
                 padding: '16px 24px', borderRadius: '20px 20px 20px 4px',
-                background: 'var(--surface-container)',
-                border: '1px solid rgba(255,255,255,0.04)',
+                background: '#FFFFFF',
+                border: '1px solid #EAECF0',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                 display: 'flex', gap: '6px', alignItems: 'center',
               }}>
-                <div className="typing-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#c0c1ff', animation: 'typingBounce 1.4s infinite ease-in-out', animationDelay: '0s' }} />
-                <div className="typing-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#c0c1ff', animation: 'typingBounce 1.4s infinite ease-in-out', animationDelay: '0.2s' }} />
-                <div className="typing-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#c0c1ff', animation: 'typingBounce 1.4s infinite ease-in-out', animationDelay: '0.4s' }} />
+                <div className="typing-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#1A5C3B', animation: 'typingBounce 1.4s infinite ease-in-out', animationDelay: '0s' }} />
+                <div className="typing-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#1A5C3B', animation: 'typingBounce 1.4s infinite ease-in-out', animationDelay: '0.2s' }} />
+                <div className="typing-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#1A5C3B', animation: 'typingBounce 1.4s infinite ease-in-out', animationDelay: '0.4s' }} />
               </div>
             </div>
-          )}
+          ) : null}
 
           <div ref={messagesEndRef} />
         </div>
 
         {/* Suggested Prompts (only before user sends first message) */}
         {messages.length <= 1 && (
-          <div style={{ padding: '0 40px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ padding: '0 32px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {suggestedPrompts.map((prompt, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(prompt)}
                 style={{
-                  padding: '8px 16px', borderRadius: '20px', border: 'none',
-                  background: 'rgba(128, 131, 255, 0.08)',
-                  color: '#c0c1ff', fontSize: '12px', fontWeight: 500,
+                  padding: '8px 16px', borderRadius: '20px',
+                  background: '#E8F5EE',
+                  color: '#1A5C3B', fontSize: '12px', fontWeight: 600,
                   cursor: 'pointer', transition: 'all 0.2s',
-                  border: '1px solid rgba(192, 193, 255, 0.1)',
+                  border: '1px solid rgba(26, 92, 59, 0.12)',
                 }}
-                onMouseOver={e => e.currentTarget.style.background = 'rgba(128, 131, 255, 0.15)'}
-                onMouseOut={e => e.currentTarget.style.background = 'rgba(128, 131, 255, 0.08)'}
+                onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(26,92,59,0.12)'; }}
+                onMouseOut={(e) => { e.currentTarget.style.background = '#E8F5EE'; }}
               >{prompt}</button>
             ))}
           </div>
@@ -181,14 +183,15 @@ export default function AITutor() {
 
         {/* Input Area */}
         <div style={{
-          padding: '16px 40px 24px',
-          borderTop: '1px solid rgba(255,255,255,0.04)',
+          padding: '16px 32px 20px',
+          borderTop: '1px solid #EAECF0',
+          background: '#FFFFFF',
         }}>
           <div style={{
             display: 'flex', alignItems: 'flex-end', gap: '12px',
-            backgroundColor: 'var(--surface-container)', borderRadius: '16px',
+            backgroundColor: '#F9FAFB', borderRadius: '14px',
             padding: '12px 16px',
-            border: '1px solid rgba(255,255,255,0.06)',
+            border: '1px solid #EAECF0',
           }}>
             <textarea
               value={input}
@@ -198,7 +201,7 @@ export default function AITutor() {
               rows={1}
               style={{
                 flex: 1, background: 'none', border: 'none', outline: 'none',
-                color: 'var(--on-surface)', fontSize: '14px', resize: 'none',
+                color: '#111827', fontSize: '14px', resize: 'none',
                 lineHeight: 1.5, fontFamily: "'Inter', sans-serif",
                 minHeight: '24px', maxHeight: '120px',
               }}
@@ -210,20 +213,20 @@ export default function AITutor() {
                 width: '40px', height: '40px', borderRadius: '12px',
                 border: 'none', cursor: input.trim() ? 'pointer' : 'default',
                 background: input.trim()
-                  ? 'linear-gradient(135deg, #8083ff, #494bd6)'
-                  : 'rgba(224, 226, 234, 0.06)',
+                  ? 'linear-gradient(135deg, #1A5C3B, #2D7A52)'
+                  : '#EAECF0',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.2s',
-                boxShadow: input.trim() ? '0 4px 12px rgba(128, 131, 255, 0.3)' : 'none',
+                boxShadow: input.trim() ? '0 4px 12px rgba(26, 92, 59, 0.25)' : 'none',
               }}
             >
               <span className="material-symbols-outlined" style={{
                 fontSize: '20px',
-                color: input.trim() ? '#fff' : 'rgba(224, 226, 234, 0.3)',
+                color: input.trim() ? '#fff' : '#9CA3AF',
               }}>send</span>
             </button>
           </div>
-          <p style={{ fontSize: '11px', color: 'rgba(224, 226, 234, 0.25)', marginTop: '8px', textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '8px', textAlign: 'center' }}>
             AI Tutor provides suggestions only. Always review content before using in class.
           </p>
         </div>

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const features = [
   {
@@ -25,6 +26,20 @@ const features = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { signInWithGoogle, user, loading } = useAuth();
+
+  // If already logged in, go straight to sessions
+  const handleAuth = async () => {
+    if (user) {
+      navigate('/sessions');
+      return;
+    }
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+    }
+  };
 
   return (
     <div style={{ backgroundColor: 'var(--background)', color: 'var(--on-surface)', minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
@@ -52,7 +67,7 @@ export default function LandingPage() {
           <a href="#features" style={{ color: 'rgba(224, 226, 234, 0.6)', fontSize: '14px', transition: 'color 0.3s' }}>Features</a>
           <a href="#" style={{ color: 'rgba(224, 226, 234, 0.6)', fontSize: '14px' }}>Pricing</a>
           <a href="#" style={{ color: 'rgba(224, 226, 234, 0.6)', fontSize: '14px' }}>Case Studies</a>
-          <button onClick={() => navigate('/login')} style={{
+          <button onClick={handleAuth} style={{
             padding: '10px 24px',
             background: 'linear-gradient(to right, var(--primary), var(--inverse-primary))',
             color: 'var(--on-primary-fixed)', fontWeight: 700, borderRadius: '12px',
@@ -93,7 +108,7 @@ export default function LandingPage() {
         </p>
 
         <div style={{ display: 'flex', gap: '16px', marginBottom: '80px' }}>
-          <button onClick={() => navigate('/login')} style={{
+          <button onClick={handleAuth} style={{
             padding: '16px 32px',
             background: 'linear-gradient(to right, var(--primary), var(--inverse-primary))',
             color: 'var(--on-primary-fixed)', fontWeight: 700, borderRadius: '16px',
@@ -201,7 +216,7 @@ export default function LandingPage() {
             Join over 2,500 educators redefining the limits of classroom intelligence. Experience the future of pedagogy.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-            <button onClick={() => navigate('/login')} style={{
+            <button onClick={handleAuth} style={{
               padding: '14px 28px',
               background: 'linear-gradient(to right, var(--primary), var(--inverse-primary))',
               color: 'var(--on-primary-fixed)', fontWeight: 700, borderRadius: '14px',

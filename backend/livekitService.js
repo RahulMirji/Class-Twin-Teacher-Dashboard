@@ -16,9 +16,10 @@ const roomService = new RoomServiceClient(httpUrl, LIVEKIT_API_KEY, LIVEKIT_API_
  * @param {string} identity  - Unique participant identity (e.g. teacherId or studentName)
  * @param {boolean} isTeacher - Teachers can publish; students are receivers
  */
-async function generateToken({ roomName, identity, isTeacher = false }) {
+async function generateToken({ roomName, identity, isTeacher = false, name = '' }) {
   const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
     identity,
+    name: name || identity,
     ttl: '4h',
   });
 

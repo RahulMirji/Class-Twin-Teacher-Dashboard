@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Sidebar({ onStartSession }) {
   const navigate = useNavigate();
   const [hoveredItem, setHoveredItem] = useState(null);
-  const [collapsed, setCollapsed] = useState(false);
   const { user, signOut } = useAuth();
 
   const handleLogout = async () => {
@@ -13,256 +12,216 @@ export default function Sidebar({ onStartSession }) {
     navigate('/login', { replace: true });
   };
 
-  const navItems = [
+  const menuItems = [
     { icon: 'space_dashboard', label: 'Dashboard', path: '/sessions', badge: null, end: true },
-    { icon: 'cast_for_education', label: 'Active Class', path: '/dashboard', badge: 'LIVE', end: false },
+    { icon: 'groups', label: 'Students', path: '/students', badge: null, end: true },
     { icon: 'auto_stories', label: 'Materials', path: '/materials', badge: null, end: true },
     { icon: 'monitoring', label: 'Insights', path: '/analytics', badge: '3', end: true },
     { icon: 'smart_toy', label: 'AI Tutor', path: '/ai-tutor', badge: 'NEW', end: true },
   ];
 
-  const bottomItems = [
+  const generalItems = [
     { icon: 'settings', label: 'Settings', path: '#' },
     { icon: 'help', label: 'Help Center', path: '#' },
+    { icon: 'logout', label: 'Logout', path: '#', isLogout: true },
   ];
+
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Teacher';
+
+  const renderNavItem = (item) => {
+    const isHovered = hoveredItem === item.label;
+    const baseStyle = {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '10px 14px',
+      borderRadius: '10px',
+      transition: 'all 0.15s ease',
+      fontSize: '14px',
+      fontWeight: 500,
+      cursor: 'pointer',
+      textDecoration: 'none',
+      color: isHovered ? '#1F2937' : '#6B7280',
+      background: isHovered ? '#F9FAFB' : 'transparent',
+      position: 'relative',
+    };
+
+    if (item.isLogout) {
+      return (
+        <div
+          key={item.label}
+          onClick={handleLogout}
+          onMouseEnter={() => setHoveredItem(item.label)}
+          onMouseLeave={() => setHoveredItem(null)}
+          style={{ ...baseStyle, color: isHovered ? '#EF4444' : '#9CA3AF', background: isHovered ? '#FEF2F2' : 'transparent' }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'inherit' }}>{item.icon}</span>
+          <span>{item.label}</span>
+        </div>
+      );
+    }
+
+    return (
+      <NavLink
+        key={item.label}
+        to={item.path}
+        end={item.end}
+        onMouseEnter={() => setHoveredItem(item.label)}
+        onMouseLeave={() => setHoveredItem(null)}
+        className={({ isActive }) => isActive ? 'nav-active' : ''}
+        style={({ isActive }) => ({
+          ...baseStyle,
+          color: isActive ? '#1A5C3B' : isHovered ? '#1F2937' : '#6B7280',
+          background: isActive ? 'rgba(26, 92, 59, 0.07)' : isHovered ? '#F9FAFB' : 'transparent',
+          fontWeight: isActive ? 600 : 500,
+        })}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'inherit', transition: 'all 0.15s' }}>
+          {item.icon}
+        </span>
+        <span style={{ flex: 1 }}>{item.label}</span>
+        {item.badge && (
+          <span style={{
+            padding: '2px 8px',
+            borderRadius: '20px',
+            fontSize: '10px',
+            fontWeight: 700,
+            ...(item.badge === 'NEW'
+              ? { background: '#E8F5EE', color: '#1A5C3B' }
+              : { background: '#F3F4F6', color: '#374151' }
+            ),
+          }}>
+            {item.badge}
+          </span>
+        )}
+      </NavLink>
+    );
+  };
 
   return (
     <aside style={{
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
-      width: collapsed ? '80px' : '272px',
-      minWidth: collapsed ? '80px' : '272px',
-      background: 'linear-gradient(180deg, rgba(16, 20, 25, 0.98) 0%, rgba(12, 15, 20, 1) 100%)',
-      borderRight: '1px solid rgba(192, 193, 255, 0.06)',
-      padding: collapsed ? '20px 12px' : '20px 16px',
-      gap: '8px',
+      width: '240px',
+      minWidth: '240px',
+      background: '#FFFFFF',
+      borderRight: '1px solid #EAECF0',
+      padding: '20px 12px',
+      gap: '2px',
       position: 'relative',
       zIndex: 20,
-      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      overflow: 'hidden',
+      overflowY: 'auto',
     }}>
-      {/* Ambient glow accent */}
-      <div style={{
-        position: 'absolute', top: '-60px', left: '-40px',
-        width: '180px', height: '180px',
-        background: 'radial-gradient(circle, rgba(192, 193, 255, 0.06) 0%, transparent 70%)',
-        pointerEvents: 'none', filter: 'blur(40px)',
-      }} />
 
-      {/* Logo Section */}
-      <div style={{
-        display: 'flex', flexDirection: collapsed ? 'column' : 'row',
-        alignItems: 'center', gap: collapsed ? '8px' : '12px',
-        padding: '8px 8px 12px 8px',
-      }}>
+      {/* Logo */}
+      <div style={{ padding: '4px 8px 20px 8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <div style={{
-          width: '42px', height: '42px', minWidth: '42px',
-          borderRadius: '14px',
-          background: 'linear-gradient(135deg, #8083ff 0%, #494bd6 50%, #6c5ce7 100%)',
+          width: '36px', height: '36px', minWidth: '36px',
+          borderRadius: '10px',
+          background: 'linear-gradient(135deg, #1A5C3B, #2D7A52)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 8px 24px rgba(128, 131, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
-          position: 'relative',
-          overflow: 'hidden',
+          boxShadow: '0 4px 12px rgba(26, 92, 59, 0.25)',
         }}>
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
-            animation: 'shimmer 3s infinite',
-          }} />
-          <span className="material-symbols-outlined filled" style={{
-            color: '#fff', fontSize: '22px', position: 'relative', zIndex: 1,
-          }}>neurology</span>
+          <span className="material-symbols-outlined filled" style={{ color: '#fff', fontSize: '20px' }}>neurology</span>
         </div>
-        {!collapsed && (
-          <div style={{ overflow: 'hidden', flex: 1 }}>
-            <h1 className="font-headline" style={{
-              fontSize: '18px', fontWeight: 800,
-              background: 'linear-gradient(to right, #e0e2ea, #c0c1ff)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              letterSpacing: '-0.02em', lineHeight: 1.2,
-            }}>ClassTwin</h1>
-            <p style={{
-              fontSize: '9px', textTransform: 'uppercase',
-              letterSpacing: '0.15em', color: 'rgba(192, 193, 255, 0.5)',
-              fontWeight: 600, marginTop: '2px',
-            }}>AI Teaching Engine</p>
-          </div>
-        )}
-        {/* Collapse/Expand Toggle */}
-        <div
-          onClick={() => setCollapsed(!collapsed)}
-          onMouseEnter={() => setHoveredItem('toggle')}
-          onMouseLeave={() => setHoveredItem(null)}
-          style={{
-            width: collapsed ? '42px' : '32px',
-            height: collapsed ? '36px' : '32px',
-            minWidth: collapsed ? '42px' : '32px',
-            borderRadius: '10px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            background: hoveredItem === 'toggle'
-              ? 'rgba(192, 193, 255, 0.1)'
-              : collapsed
-                ? 'rgba(224, 226, 234, 0.04)'
-                : 'transparent',
-            border: collapsed ? '1px solid rgba(192, 193, 255, 0.08)' : '1px solid transparent',
-          }}
-        >
-          <span className="material-symbols-outlined" style={{
-            fontSize: '18px',
-            color: hoveredItem === 'toggle' ? 'var(--primary-fixed-dim)' : 'rgba(224, 226, 234, 0.4)',
-            transition: 'all 0.3s',
-          }}>{collapsed ? 'menu_open' : 'keyboard_double_arrow_left'}</span>
+        <div>
+          <h1 className="font-headline" style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+            ClassTwin
+          </h1>
+          <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#9CA3AF', fontWeight: 600, marginTop: '1px' }}>
+            AI Teaching Engine
+          </p>
         </div>
       </div>
 
-      {/* Divider */}
-      <div style={{
-        height: '1px', margin: '4px 8px',
-        background: 'linear-gradient(to right, transparent, rgba(192, 193, 255, 0.08), transparent)',
-      }} />
-
-      {/* Section Label */}
-      {!collapsed && (
-        <p style={{
-          fontSize: '10px', textTransform: 'uppercase',
-          letterSpacing: '0.12em', color: 'rgba(224, 226, 234, 0.25)',
-          fontWeight: 600, padding: '4px 12px 0',
-        }}>Navigation</p>
-      )}
-
-      {/* Navigation */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        {navItems.map((item) => (
-          <NavLink
-            key={item.label}
-            to={item.path}
-            end={item.end}
-            onMouseEnter={() => setHoveredItem(item.label)}
-            onMouseLeave={() => setHoveredItem(null)}
-            className={({ isActive }) => isActive ? 'nav-active' : 'nav-inactive'}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: collapsed ? '12px' : '11px 14px',
-              borderRadius: '12px',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              color: isActive ? '#e0e2ea' : 'rgba(224, 226, 234, 0.45)',
-              background: isActive
-                ? 'linear-gradient(135deg, rgba(128, 131, 255, 0.12), rgba(73, 75, 214, 0.08))'
-                : hoveredItem === item.label
-                  ? 'rgba(224, 226, 234, 0.04)'
-                  : 'transparent',
-              fontWeight: isActive ? 600 : 500,
-              fontSize: '13.5px',
-              textDecoration: 'none',
-              position: 'relative',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              border: isActive ? '1px solid rgba(192, 193, 255, 0.1)' : '1px solid transparent',
-            })}
-          >
-            <span className="material-symbols-outlined" style={{
-              fontSize: '20px',
-              transition: 'all 0.2s',
-            }}>{item.icon}</span>
-            {!collapsed && <span>{item.label}</span>}
-            {!collapsed && item.badge && (
-              <span style={{
-                marginLeft: 'auto',
-                padding: '2px 8px',
-                borderRadius: '20px',
-                fontSize: '9px',
-                fontWeight: 700,
-                letterSpacing: '0.05em',
-                ...(item.badge === 'LIVE' ? {
-                  background: 'rgba(74, 225, 118, 0.12)',
-                  color: '#4ae176',
-                  border: '1px solid rgba(74, 225, 118, 0.2)',
-                } : item.badge === 'NEW' ? {
-                  background: 'linear-gradient(135deg, rgba(128, 131, 255, 0.15), rgba(108, 92, 231, 0.15))',
-                  color: '#c0c1ff',
-                  border: '1px solid rgba(192, 193, 255, 0.15)',
-                } : {
-                  background: 'rgba(255, 185, 95, 0.12)',
-                  color: '#ffb95f',
-                  border: '1px solid rgba(255, 185, 95, 0.2)',
-                }),
-              }}>{item.badge}</span>
-            )}
-          </NavLink>
-        ))}
+      {/* MENU section */}
+      <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', fontWeight: 700, padding: '4px 14px 6px' }}>
+        Menu
+      </p>
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {menuItems.map(renderNavItem)}
       </nav>
 
-      {/* User info + Logout */}
-      <div style={{ paddingTop: '24px', borderTop: '1px solid rgba(70, 69, 84, 0.1)' }}>
-        {user && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
-            padding: '8px 16px', marginBottom: '8px',
-          }}>
-            {user.user_metadata?.avatar_url ? (
-              <img src={user.user_metadata.avatar_url} alt=""
-                style={{ width: '34px', height: '34px', minWidth: '34px', borderRadius: '50%', border: '2px solid rgba(192, 193, 255, 0.2)' }} />
-            ) : (
-              <div style={{
-                width: '34px', height: '34px', minWidth: '34px', borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--primary), var(--inverse-primary))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '14px', fontWeight: 700, color: 'var(--on-primary-fixed)',
-              }}>
-                {(user.user_metadata?.full_name || user.email)?.[0]?.toUpperCase()}
-              </div>
-            )}
-            {!collapsed && (
-              <div style={{ overflow: 'hidden', flex: 1 }}>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: '#e0e2ea', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]}
-                </p>
-                <p style={{ fontSize: '10px', color: 'rgba(224, 226, 234, 0.4)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.email}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+      {/* Spacer */}
+      <div style={{ flex: 1, minHeight: '20px' }} />
 
-        {/* Logout Button */}
-        <div
-          onClick={handleLogout}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
-            padding: '10px 16px', margin: '0 8px',
-            borderRadius: '10px',
-            color: 'rgba(224, 226, 234, 0.45)',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            fontSize: '14px',
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 180, 171, 0.08)';
-            e.currentTarget.style.color = 'var(--error)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'rgba(224, 226, 234, 0.45)';
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span>
-          {!collapsed && <span style={{ fontWeight: 500, fontSize: '13px' }}>Log Out</span>}
+      {/* GENERAL section */}
+      <div style={{ borderTop: '1px solid #EAECF0', paddingTop: '12px' }}>
+        <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', fontWeight: 700, padding: '4px 14px 6px' }}>
+          General
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {generalItems.map(renderNavItem)}
         </div>
       </div>
 
+      {/* User profile */}
+      {user && (
+        <div style={{
+          marginTop: '12px',
+          padding: '12px',
+          borderRadius: '12px',
+          background: '#F9FAFB',
+          border: '1px solid #EAECF0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+        }}>
+          {user.user_metadata?.avatar_url ? (
+            <img src={user.user_metadata.avatar_url} alt="" style={{ width: '32px', height: '32px', minWidth: '32px', borderRadius: '50%', border: '2px solid #EAECF0' }} />
+          ) : (
+            <div style={{
+              width: '32px', height: '32px', minWidth: '32px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #1A5C3B, #2D7A52)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '13px', fontWeight: 700, color: '#fff',
+            }}>
+              {displayName[0]?.toUpperCase()}
+            </div>
+          )}
+          <div style={{ overflow: 'hidden', flex: 1 }}>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {displayName}
+            </p>
+            <p style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {user.email}
+            </p>
+          </div>
+        </div>
+      )}
 
-      {/* CSS Keyframes */}
-      <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
+      {/* Mobile app promo card */}
+      <div style={{
+        marginTop: '12px',
+        borderRadius: '14px',
+        background: 'linear-gradient(135deg, #1A5C3B 0%, #0f3d26 100%)',
+        padding: '16px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', top: '-20px', right: '-20px',
+          width: '80px', height: '80px', borderRadius: '50%',
+          background: 'rgba(255,255,255,0.06)',
+        }} />
+        <p style={{ fontSize: '12px', fontWeight: 700, color: '#fff', lineHeight: 1.4, marginBottom: '4px' }}>
+          Download our<br /><span style={{ color: '#4DE89A' }}>Mobile App</span>
+        </p>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)', marginBottom: '12px', lineHeight: 1.5 }}>
+          Students join your class in real-time
+        </p>
+        <button style={{
+          width: '100%', padding: '7px 0',
+          background: 'rgba(255,255,255,0.15)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: '8px', color: '#fff',
+          fontSize: '11px', fontWeight: 700,
+          cursor: 'pointer', backdropFilter: 'blur(4px)',
+        }}>
+          Download
+        </button>
+      </div>
     </aside>
   );
 }
