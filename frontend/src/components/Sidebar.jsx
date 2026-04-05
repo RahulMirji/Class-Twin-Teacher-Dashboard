@@ -1,6 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, createContext, useContext } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+
+// Shared context so pages can read collapsed state if needed
+export const SidebarContext = createContext({ collapsed: false });
+export const useSidebar = () => useContext(SidebarContext);
 
 export default function Sidebar({ onStartSession }) {
   const navigate = useNavigate();
@@ -13,256 +17,303 @@ export default function Sidebar({ onStartSession }) {
     navigate('/login', { replace: true });
   };
 
-  const navItems = [
+  const menuItems = [
     { icon: 'space_dashboard', label: 'Dashboard', path: '/sessions', badge: null, end: true },
-    { icon: 'cast_for_education', label: 'Active Class', path: '/dashboard', badge: 'LIVE', end: false },
+    { icon: 'groups', label: 'Students', path: '/students', badge: null, end: true },
     { icon: 'auto_stories', label: 'Materials', path: '/materials', badge: null, end: true },
     { icon: 'monitoring', label: 'Insights', path: '/analytics', badge: '3', end: true },
-    { icon: 'smart_toy', label: 'AI Tutor', path: '/ai-tutor', badge: 'NEW', end: true },
+    { icon: 'neurology', label: 'Twin Engine', path: '/ai-tutor', badge: 'NEW', end: true },
   ];
 
-  const bottomItems = [
+  const generalItems = [
     { icon: 'settings', label: 'Settings', path: '#' },
     { icon: 'help', label: 'Help Center', path: '#' },
   ];
 
-  return (
-    <aside style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      width: collapsed ? '80px' : '272px',
-      minWidth: collapsed ? '80px' : '272px',
-      background: 'linear-gradient(180deg, rgba(16, 20, 25, 0.98) 0%, rgba(12, 15, 20, 1) 100%)',
-      borderRight: '1px solid rgba(192, 193, 255, 0.06)',
-      padding: collapsed ? '20px 12px' : '20px 16px',
-      gap: '8px',
-      position: 'relative',
-      zIndex: 20,
-      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      overflow: 'hidden',
-    }}>
-      {/* Ambient glow accent */}
-      <div style={{
-        position: 'absolute', top: '-60px', left: '-40px',
-        width: '180px', height: '180px',
-        background: 'radial-gradient(circle, rgba(192, 193, 255, 0.06) 0%, transparent 70%)',
-        pointerEvents: 'none', filter: 'blur(40px)',
-      }} />
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Teacher';
 
-      {/* Logo Section */}
-      <div style={{
-        display: 'flex', flexDirection: collapsed ? 'column' : 'row',
-        alignItems: 'center', gap: collapsed ? '8px' : '12px',
-        padding: '8px 8px 12px 8px',
+  const sidebarWidth = collapsed ? 72 : 240;
+
+  const renderNavItem = (item) => {
+    const isHovered = hoveredItem === item.label;
+    const baseStyle = {
+      display: 'flex',
+      alignItems: 'center',
+      gap: collapsed ? '0px' : '12px',
+      padding: collapsed ? '10px 0' : '10px 14px',
+      borderRadius: '10px',
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      fontSize: '14px',
+      fontWeight: 500,
+      cursor: 'pointer',
+      textDecoration: 'none',
+      color: isHovered ? '#1F2937' : '#6B7280',
+      background: isHovered ? '#F9FAFB' : 'transparent',
+      position: 'relative',
+      justifyContent: collapsed ? 'center' : 'flex-start',
+      overflow: 'hidden',
+      whiteSpace: 'nowrap',
+    };
+
+    if (item.isLogout) {
+      return (
+        <div
+          key={item.label}
+          onClick={handleLogout}
+          onMouseEnter={() => setHoveredItem(item.label)}
+          onMouseLeave={() => setHoveredItem(null)}
+          style={{ ...baseStyle, color: isHovered ? '#EF4444' : '#9CA3AF', background: isHovered ? '#FEF2F2' : 'transparent' }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'inherit', minWidth: '20px' }}>{item.icon}</span>
+          {!collapsed && <span>{item.label}</span>}
+        </div>
+      );
+    }
+
+    return (
+      <NavLink
+        key={item.label}
+        to={item.path}
+        end={item.end}
+        onMouseEnter={() => setHoveredItem(item.label)}
+        onMouseLeave={() => setHoveredItem(null)}
+        className={({ isActive }) => isActive ? 'nav-active' : ''}
+        title={collapsed ? item.label : undefined}
+        style={({ isActive }) => ({
+          ...baseStyle,
+          color: isActive ? '#1A5C3B' : isHovered ? '#1F2937' : '#6B7280',
+          background: isActive ? 'rgba(26, 92, 59, 0.07)' : isHovered ? '#F9FAFB' : 'transparent',
+          fontWeight: isActive ? 600 : 500,
+        })}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'inherit', transition: 'all 0.15s', minWidth: '20px' }}>
+          {item.icon}
+        </span>
+        {!collapsed && <span style={{ flex: 1 }}>{item.label}</span>}
+        {!collapsed && item.badge && (
+          <span style={{
+            padding: '2px 8px',
+            borderRadius: '20px',
+            fontSize: '10px',
+            fontWeight: 700,
+            ...(item.badge === 'NEW'
+              ? { background: '#E8F5EE', color: '#1A5C3B' }
+              : { background: '#F3F4F6', color: '#374151' }
+            ),
+          }}>
+            {item.badge}
+          </span>
+        )}
+      </NavLink>
+    );
+  };
+
+  return (
+    <SidebarContext.Provider value={{ collapsed }}>
+      <aside style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: `${sidebarWidth}px`,
+        minWidth: `${sidebarWidth}px`,
+        background: '#FFFFFF',
+        borderRight: '1px solid #EAECF0',
+        padding: collapsed ? '20px 10px' : '20px 12px',
+        gap: '2px',
+        position: 'relative',
+        zIndex: 20,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
+
+        {/* Logo + Collapse Toggle */}
         <div style={{
-          width: '42px', height: '42px', minWidth: '42px',
-          borderRadius: '14px',
-          background: 'linear-gradient(135deg, #8083ff 0%, #494bd6 50%, #6c5ce7 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 8px 24px rgba(128, 131, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+          padding: collapsed ? '4px 0 16px 0' : '4px 8px 20px 8px',
+          display: 'flex', alignItems: 'center', gap: '10px',
+          justifyContent: collapsed ? 'center' : 'flex-start',
           position: 'relative',
-          overflow: 'hidden',
         }}>
           <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
-            animation: 'shimmer 3s infinite',
-          }} />
-          <span className="material-symbols-outlined filled" style={{
-            color: '#fff', fontSize: '22px', position: 'relative', zIndex: 1,
-          }}>neurology</span>
-        </div>
-        {!collapsed && (
-          <div style={{ overflow: 'hidden', flex: 1 }}>
-            <h1 className="font-headline" style={{
-              fontSize: '18px', fontWeight: 800,
-              background: 'linear-gradient(to right, #e0e2ea, #c0c1ff)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              letterSpacing: '-0.02em', lineHeight: 1.2,
-            }}>ClassTwin</h1>
-            <p style={{
-              fontSize: '9px', textTransform: 'uppercase',
-              letterSpacing: '0.15em', color: 'rgba(192, 193, 255, 0.5)',
-              fontWeight: 600, marginTop: '2px',
-            }}>AI Teaching Engine</p>
-          </div>
-        )}
-        {/* Collapse/Expand Toggle */}
-        <div
-          onClick={() => setCollapsed(!collapsed)}
-          onMouseEnter={() => setHoveredItem('toggle')}
-          onMouseLeave={() => setHoveredItem(null)}
-          style={{
-            width: collapsed ? '42px' : '32px',
-            height: collapsed ? '36px' : '32px',
-            minWidth: collapsed ? '42px' : '32px',
+            width: '36px', height: '36px', minWidth: '36px',
             borderRadius: '10px',
+            background: 'linear-gradient(135deg, #1A5C3B, #2D7A52)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            background: hoveredItem === 'toggle'
-              ? 'rgba(192, 193, 255, 0.1)'
-              : collapsed
-                ? 'rgba(224, 226, 234, 0.04)'
-                : 'transparent',
-            border: collapsed ? '1px solid rgba(192, 193, 255, 0.08)' : '1px solid transparent',
+            boxShadow: '0 4px 12px rgba(26, 92, 59, 0.25)',
+            cursor: collapsed ? 'pointer' : 'default',
           }}
-        >
-          <span className="material-symbols-outlined" style={{
-            fontSize: '18px',
-            color: hoveredItem === 'toggle' ? 'var(--primary-fixed-dim)' : 'rgba(224, 226, 234, 0.4)',
-            transition: 'all 0.3s',
-          }}>{collapsed ? 'menu_open' : 'keyboard_double_arrow_left'}</span>
-        </div>
-      </div>
+            onClick={collapsed ? () => setCollapsed(false) : undefined}
+            title={collapsed ? 'Expand sidebar' : undefined}
+          >
+            <span className="material-symbols-outlined filled" style={{ color: '#fff', fontSize: '20px' }}>neurology</span>
+          </div>
+          {!collapsed && (
+            <div style={{ flex: 1 }}>
+              <h1 className="font-headline" style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+                ClassTwin
+              </h1>
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#9CA3AF', fontWeight: 600, marginTop: '1px' }}>
+                AI Teaching Engine
+              </p>
+            </div>
+          )}
 
-      {/* Divider */}
-      <div style={{
-        height: '1px', margin: '4px 8px',
-        background: 'linear-gradient(to right, transparent, rgba(192, 193, 255, 0.08), transparent)',
-      }} />
-
-      {/* Section Label */}
-      {!collapsed && (
-        <p style={{
-          fontSize: '10px', textTransform: 'uppercase',
-          letterSpacing: '0.12em', color: 'rgba(224, 226, 234, 0.25)',
-          fontWeight: 600, padding: '4px 12px 0',
-        }}>Navigation</p>
-      )}
-
-      {/* Navigation */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        {navItems.map((item) => (
-          <NavLink
-            key={item.label}
-            to={item.path}
-            end={item.end}
-            onMouseEnter={() => setHoveredItem(item.label)}
-            onMouseLeave={() => setHoveredItem(null)}
-            className={({ isActive }) => isActive ? 'nav-active' : 'nav-inactive'}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: collapsed ? '12px' : '11px 14px',
-              borderRadius: '12px',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              color: isActive ? '#e0e2ea' : 'rgba(224, 226, 234, 0.45)',
-              background: isActive
-                ? 'linear-gradient(135deg, rgba(128, 131, 255, 0.12), rgba(73, 75, 214, 0.08))'
-                : hoveredItem === item.label
-                  ? 'rgba(224, 226, 234, 0.04)'
-                  : 'transparent',
-              fontWeight: isActive ? 600 : 500,
-              fontSize: '13.5px',
-              textDecoration: 'none',
-              position: 'relative',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              border: isActive ? '1px solid rgba(192, 193, 255, 0.1)' : '1px solid transparent',
-            })}
+          {/* Collapse / Expand button */}
+          <button
+            onClick={() => setCollapsed(prev => !prev)}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="sidebar-toggle-btn"
+            style={{
+              position: collapsed ? 'relative' : 'absolute',
+              right: collapsed ? 'auto' : '-2px',
+              top: collapsed ? 'auto' : '50%',
+              transform: collapsed ? 'none' : 'translateY(-50%)',
+              width: '28px', height: '28px',
+              borderRadius: '8px',
+              border: '1px solid #EAECF0',
+              background: '#FFFFFF',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              padding: 0,
+              marginTop: collapsed ? '8px' : 0,
+            }}
           >
             <span className="material-symbols-outlined" style={{
-              fontSize: '20px',
-              transition: 'all 0.2s',
-            }}>{item.icon}</span>
-            {!collapsed && <span>{item.label}</span>}
-            {!collapsed && item.badge && (
-              <span style={{
-                marginLeft: 'auto',
-                padding: '2px 8px',
-                borderRadius: '20px',
-                fontSize: '9px',
-                fontWeight: 700,
-                letterSpacing: '0.05em',
-                ...(item.badge === 'LIVE' ? {
-                  background: 'rgba(74, 225, 118, 0.12)',
-                  color: '#4ae176',
-                  border: '1px solid rgba(74, 225, 118, 0.2)',
-                } : item.badge === 'NEW' ? {
-                  background: 'linear-gradient(135deg, rgba(128, 131, 255, 0.15), rgba(108, 92, 231, 0.15))',
-                  color: '#c0c1ff',
-                  border: '1px solid rgba(192, 193, 255, 0.15)',
-                } : {
-                  background: 'rgba(255, 185, 95, 0.12)',
-                  color: '#ffb95f',
-                  border: '1px solid rgba(255, 185, 95, 0.2)',
-                }),
-              }}>{item.badge}</span>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+              fontSize: '16px', color: '#6B7280',
+              transition: 'transform 0.25s ease',
+              transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+            }}>
+              chevron_right
+            </span>
+          </button>
+        </div>
 
-      {/* User info + Logout */}
-      <div style={{ paddingTop: '24px', borderTop: '1px solid rgba(70, 69, 84, 0.1)' }}>
+        {/* MENU section */}
+        {!collapsed && (
+          <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', fontWeight: 700, padding: '4px 14px 6px' }}>
+            Menu
+          </p>
+        )}
+        {collapsed && <div style={{ height: '8px' }} />}
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {menuItems.map(renderNavItem)}
+        </nav>
+
+        {/* Spacer */}
+        <div style={{ flex: 1, minHeight: '20px' }} />
+
+        {/* GENERAL section */}
+        <div style={{ borderTop: '1px solid #EAECF0', paddingTop: '12px' }}>
+          {!collapsed && (
+            <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', fontWeight: 700, padding: '4px 14px 6px' }}>
+              General
+            </p>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {generalItems.map(renderNavItem)}
+          </div>
+        </div>
+
+        {/* User profile + Logout */}
         {user && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
-            padding: '8px 16px', marginBottom: '8px',
+            marginTop: '12px',
+            borderRadius: collapsed ? '10px' : '14px',
+            border: '1px solid #EAECF0',
+            overflow: 'hidden',
+            transition: 'all 0.25s ease',
           }}>
-            {user.user_metadata?.avatar_url ? (
-              <img src={user.user_metadata.avatar_url} alt=""
-                style={{ width: '34px', height: '34px', minWidth: '34px', borderRadius: '50%', border: '2px solid rgba(192, 193, 255, 0.2)' }} />
-            ) : (
+            {collapsed ? (
+              /* Collapsed: avatar only */
               <div style={{
-                width: '34px', height: '34px', minWidth: '34px', borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--primary), var(--inverse-primary))',
+                padding: '10px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '14px', fontWeight: 700, color: 'var(--on-primary-fixed)',
               }}>
-                {(user.user_metadata?.full_name || user.email)?.[0]?.toUpperCase()}
+                {user.user_metadata?.avatar_url ? (
+                  <img src={user.user_metadata.avatar_url} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid #EAECF0' }} />
+                ) : (
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #1A5C3B, #2D7A52)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '13px', fontWeight: 700, color: '#fff',
+                  }}>
+                    {displayName[0]?.toUpperCase()}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Expanded: full profile */
+              <div style={{
+                padding: '14px',
+                background: '#F9FAFB',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}>
+                {user.user_metadata?.avatar_url ? (
+                  <img src={user.user_metadata.avatar_url} alt="" style={{ width: '36px', height: '36px', minWidth: '36px', borderRadius: '50%', border: '2px solid #EAECF0' }} />
+                ) : (
+                  <div style={{
+                    width: '36px', height: '36px', minWidth: '36px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #1A5C3B, #2D7A52)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '14px', fontWeight: 700, color: '#fff',
+                  }}>
+                    {displayName[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div style={{ overflow: 'hidden', flex: 1 }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#111827', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {displayName}
+                  </p>
+                  <p style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user.email}
+                  </p>
+                </div>
               </div>
             )}
-            {!collapsed && (
-              <div style={{ overflow: 'hidden', flex: 1 }}>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: '#e0e2ea', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]}
-                </p>
-                <p style={{ fontSize: '10px', color: 'rgba(224, 226, 234, 0.4)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.email}
-                </p>
-              </div>
-            )}
+            <button
+              onClick={handleLogout}
+              title={collapsed ? 'Sign Out' : undefined}
+              style={{
+                width: '100%',
+                padding: collapsed ? '8px' : '10px 14px',
+                background: '#FFFFFF',
+                border: 'none',
+                borderTop: '1px solid #EAECF0',
+                color: '#EF4444',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: collapsed ? '0' : '8px',
+                transition: 'background 0.15s ease',
+              }}
+              onMouseOver={e => e.currentTarget.style.background = '#FEF2F2'}
+              onMouseOut={e => e.currentTarget.style.background = '#FFFFFF'}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span>
+              {!collapsed && 'Sign Out'}
+            </button>
           </div>
         )}
 
-        {/* Logout Button */}
-        <div
-          onClick={handleLogout}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
-            padding: '10px 16px', margin: '0 8px',
-            borderRadius: '10px',
-            color: 'rgba(224, 226, 234, 0.45)',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            fontSize: '14px',
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 180, 171, 0.08)';
-            e.currentTarget.style.color = 'var(--error)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'rgba(224, 226, 234, 0.45)';
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span>
-          {!collapsed && <span style={{ fontWeight: 500, fontSize: '13px' }}>Log Out</span>}
-        </div>
-      </div>
-
-
-      {/* CSS Keyframes */}
-      <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
-    </aside>
+        <style>{`
+          .sidebar-toggle-btn:hover {
+            background: #F3F4F6 !important;
+            border-color: #D1D5DB !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+          }
+          .sidebar-toggle-btn:hover .material-symbols-outlined {
+            color: #1A5C3B !important;
+          }
+        `}</style>
+      </aside>
+    </SidebarContext.Provider>
   );
 }

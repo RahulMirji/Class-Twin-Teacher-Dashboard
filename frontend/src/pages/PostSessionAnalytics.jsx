@@ -1,239 +1,336 @@
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../lib/supabase';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  ComposedChart
+} from 'recharts';
 import Sidebar from '../components/Sidebar';
 
-const studentInsights = [
-  { name: 'Alex Rivers', score: '94%', trend: 'trending_up', scoreColor: 'var(--secondary)', scoreBg: 'rgba(74, 225, 118, 0.1)', scoreBorder: 'rgba(74, 225, 118, 0.2)' },
-  { name: 'Casey Jenkins', score: '88%', trend: 'trending_flat', scoreColor: 'var(--primary)', scoreBg: 'rgba(192, 193, 255, 0.1)', scoreBorder: 'rgba(192, 193, 255, 0.2)' },
-  { name: 'Jordan Smith', score: '72%', trend: 'trending_down', scoreColor: 'var(--tertiary)', scoreBg: 'rgba(202, 129, 0, 0.1)', scoreBorder: 'rgba(255, 185, 95, 0.2)', trendColor: 'var(--error)' },
-  { name: 'Sam Taylor', score: '91%', trend: 'trending_up', scoreColor: 'var(--secondary)', scoreBg: 'rgba(74, 225, 118, 0.1)', scoreBorder: 'rgba(74, 225, 118, 0.2)' },
+// Custom CSS added via inline styles for specific elements
+const glassStyle = {
+  backgroundColor: '#FFFFFF',
+  border: '1px solid #EAECF0',
+  borderRadius: '20px',
+  padding: '28px',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+};
+
+// -- DUMMY DATA FOR THE DASHBOARD --
+const COLORS = ['#4ae176', '#8083ff', '#ffb95f', '#ff5f81', '#1fc7a1'];
+
+const attendanceData = [
+  { day: 'Mon', present: 110, absent: 10 },
+  { day: 'Tue', present: 105, absent: 15 },
+  { day: 'Wed', present: 112, absent: 8 },
+  { day: 'Thu', present: 98, absent: 22 },
+  { day: 'Fri', present: 115, absent: 5 },
 ];
 
-const actionItems = [
-  { priority: 'Priority 1', label: 'Visualizing Factorial Tree Diagrams', color: 'var(--primary)' },
-  { priority: 'Priority 2', label: 'Identify Base Cases in Fibonacci', color: 'var(--on-surface-variant)' },
-  { priority: 'Priority 3', label: 'Heap vs Stack allocation review', color: 'var(--on-surface-variant)' },
+const subjectMarks = [
+  { subject: 'Math', avg: 76, highest: 98 },
+  { subject: 'Physics', avg: 68, highest: 95 },
+  { subject: 'Chemistry', avg: 72, highest: 92 },
+  { subject: 'CompSci', avg: 85, highest: 99 },
+  { subject: 'English', avg: 82, highest: 96 }
+];
+
+const behaviorRadar = [
+  { metric: 'Participation', classAvg: 75, topStudent: 95 },
+  { metric: 'Discipline', classAvg: 85, topStudent: 98 },
+  { metric: 'Focus', classAvg: 70, topStudent: 92 },
+  { metric: 'Teamwork', classAvg: 80, topStudent: 100 },
+  { metric: 'Initiative', classAvg: 65, topStudent: 90 }
+];
+
+const riskLevels = [
+  { name: 'Low Risk', value: 85 },
+  { name: 'Medium Risk', value: 25 },
+  { name: 'High Risk', value: 10 }
+];
+
+const assignmentStatus = [
+  { name: 'Submitted', value: 90 },
+  { name: 'Pending', value: 20 },
+  { name: 'Late', value: 10 }
+];
+
+const testPerformance = [
+  { exam: 'Term 1', marks: 65, classAvg: 60 },
+  { exam: 'Mid-term', marks: 72, classAvg: 68 },
+  { exam: 'Term 2', marks: 78, classAvg: 70 },
+  { exam: 'Finals', marks: 84, classAvg: 75 }
 ];
 
 export default function PostSessionAnalytics() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('snapshot');
+  
+  // Real Data States
+  const [realStats, setRealStats] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const tabs = [
+    { id: 'snapshot', label: 'Snapshot & Alerts' },
+    { id: 'attendance', label: 'Attendance & Behavior' },
+    { id: 'academics', label: 'Academics & Exams' }
+  ];
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  async function fetchDashboardData() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const headers = { Authorization: `Bearer ${session.access_token}` };
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+      const res = await fetch(`${baseUrl}/api/dashboard/stats`, { headers });
+      if (res.ok) {
+        setRealStats(await res.json());
+      }
+    } catch (err) {
+      console.error('Error fetching real stats:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Derive top KPIs from real data if available
+  const totalRealSessions = realStats.length;
+  let totalLogs = 0;
+  let avgConfidence = 0;
+  if (totalRealSessions > 0) {
+    const totalConf = realStats.reduce((acc, session) => acc + (session.overall_confidence || 0), 0);
+    avgConfidence = Math.round(totalConf / totalRealSessions);
+    totalLogs = realStats.reduce((acc, session) => acc + (session.engagement_logs?.[0]?.count || 0), 0);
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <div style={{ flex: 1, height: '100vh', overflowY: 'auto', backgroundColor: '#101419', color: '#e0e2ea', fontFamily: "'Inter', sans-serif", backgroundImage: 'radial-gradient(circle at top right, rgba(128, 131, 255, 0.15), transparent 50%)', paddingBottom: '96px' }}>
+      <div style={{ flex: 1, height: '100vh', overflowY: 'auto', backgroundColor: '#F5F6FA', color: '#111827', fontFamily: "'Inter', sans-serif", paddingBottom: '96px' }}>
       {/* Top NavBar */}
       <header style={{
-        backgroundColor: 'rgba(24, 28, 33, 0.8)',
-        backdropFilter: 'blur(30px)',
+        backgroundColor: '#FFFFFF',
+        borderBottom: '1px solid #EAECF0',
         position: 'sticky', top: 0, zIndex: 50,
-        borderBottom: '1px solid rgba(224, 226, 234, 0.15)',
-        boxShadow: '0 40px 40px rgba(224, 226, 234, 0.04)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '0 32px', height: '80px',
+        padding: '0 32px', height: '64px',
       }}>
-        <div className="font-headline" style={{ fontSize: '24px', fontWeight: 700, background: 'linear-gradient(to right, #c0c1ff, #494bd6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>ClassTwin</div>
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/sessions'); }} style={{ color: 'rgba(224, 226, 234, 0.6)', transition: 'color 0.3s', fontSize: '14px' }}>Sessions</a>
-          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/sessions'); }} style={{ color: 'rgba(224, 226, 234, 0.6)', transition: 'color 0.3s', fontSize: '14px' }}>Library</a>
-          <a href="#" style={{ color: '#c0c1ff', borderBottom: '2px solid #c0c1ff', paddingBottom: '4px', fontSize: '14px' }}>Analytics</a>
-          <a href="#" style={{ color: 'rgba(224, 226, 234, 0.6)', transition: 'color 0.3s', fontSize: '14px' }}>Settings</a>
+        <div className="font-headline" style={{ fontSize: '20px', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em' }}>Analytics Hub</div>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/sessions'); }} style={{ color: '#6B7280', fontSize: '14px', fontWeight: 500 }}>Sessions</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/students'); }} style={{ color: '#6B7280', fontSize: '14px', fontWeight: 500 }}>Students</a>
+          <a href="#" style={{ color: '#1A5C3B', fontSize: '14px', fontWeight: 600, borderBottom: '2px solid #1A5C3B', paddingBottom: '2px' }}>Analytics</a>
         </nav>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0c1ff' }}>
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
-          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0c1ff' }}>
-            <span className="material-symbols-outlined">help_outline</span>
-          </button>
-          <div style={{
-            width: '40px', height: '40px', borderRadius: '50%',
-            border: '1px solid rgba(192, 193, 255, 0.2)',
-            backgroundColor: 'var(--surface-container-high)',
-            overflow: 'hidden',
-          }} />
-        </div>
+        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}><span className="material-symbols-outlined">notifications</span></button>
       </header>
 
-      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '48px 32px', display: 'flex', flexDirection: 'column', gap: '64px' }}>
-        {/* Hero Section */}
-        <section style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '24px', marginBottom: '32px' }}>
-            <div>
-              <p style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--secondary)', fontWeight: 600, marginBottom: '8px' }}>Post-Session Report</p>
-              <h1 className="font-headline" style={{ fontSize: '48px', fontWeight: 800, letterSpacing: '-0.03em' }}>Session Summary: Intro to Recursion</h1>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--on-surface-variant)', marginBottom: '4px' }}>Overall Comprehension</p>
-              <div className="font-headline" style={{ fontSize: '80px', fontWeight: 800, color: 'var(--primary)', filter: 'drop-shadow(0 0 30px rgba(128,131,255,0.4))' }}>82%</div>
-            </div>
-          </div>
+      <main style={{ maxWidth: '1440px', margin: '0 auto', padding: '48px 32px', display: 'flex', flexDirection: 'column', gap: '48px' }}>
+        
+        {/* Header Area */}
+        <div>
+          <p style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1A5C3B', fontWeight: 700, marginBottom: '8px' }}>Advanced Analytics Hub</p>
+          <h1 className="font-headline" style={{ fontSize: '36px', fontWeight: 800, letterSpacing: '-0.02em', color: '#111827' }}>Classroom Intelligence</h1>
+        </div>
 
-          {/* Chart Canvas */}
-          <div style={{
-            backgroundColor: 'var(--surface-container-low)', borderRadius: '32px',
-            padding: '32px', position: 'relative', overflow: 'hidden', height: '400px',
-          }}>
-            <div style={{ position: 'absolute', inset: 0, opacity: 0.1, background: 'radial-gradient(circle at center, var(--primary), transparent)' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
-                <h3 style={{ color: 'var(--on-surface-variant)', fontWeight: 500 }}>Comprehension Trend (45 min session)</h3>
-                <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-                    Live Score
+        {/* Dynamic Tab Navigation */}
+        <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #EAECF0' }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '16px 24px',
+                fontSize: '16px',
+                fontWeight: 600,
+                color: activeTab === tab.id ? '#1A5C3B' : '#9CA3AF',
+                borderBottom: activeTab === tab.id ? '3px solid #1A5C3B' : '3px solid transparent',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+          >
+            {/* TAB 1: SNAPSHOT & ALERTS */}
+            {activeTab === 'snapshot' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                {/* 4 KPI Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+                  {[ 
+                    { title: 'Total Sessions Run', value: isLoading ? '--' : totalRealSessions, trend: 'Across all subjects', icon: 'groups', color: 'var(--primary)' },
+                    { title: 'Student Engagements', value: isLoading ? '--' : totalLogs, trend: '+4% from last month', icon: 'fact_check', color: 'var(--secondary)' },
+                    { title: 'Avg Cognitive Sync', value: isLoading ? '--' : `${avgConfidence}%`, trend: '-2% from last term', icon: 'psychology', color: 'var(--tertiary)' },
+                    { title: 'Pending Tasks', value: '24', trend: 'Needs review today', icon: 'assignment_late', color: 'var(--error)' }
+                  ].map((kpi, i) => (
+                    <div key={i} style={{ ...glassStyle, padding: '24px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                        <span className="material-symbols-outlined" style={{ color: kpi.color, fontSize: '32px' }}>{kpi.icon}</span>
+                      </div>
+                      <h3 style={{ fontSize: '36px', fontWeight: 800, marginBottom: '8px' }}>{kpi.value}</h3>
+                      <p style={{ fontSize: '14px', color: 'rgba(224, 226, 234, 0.6)' }}>{kpi.title}</p>
+                      <p style={{ fontSize: '12px', color: kpi.color, marginTop: '8px', fontWeight: 600 }}>{kpi.trend}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                  {/* Risk Area Chart */}
+                  <div style={glassStyle}>
+                    <h3 className="font-headline" style={{ fontSize: '20px', marginBottom: '24px' }}>Risk Level Distribution</h3>
+                    <div style={{ height: '300px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={riskLevels} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value">
+                            {riskLevels.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#EAECF0', borderRadius: '8px', color: '#111827' }} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--secondary)' }} />
-                    Class Target
+
+                  {/* AI Oracle Component */}
+                  <div style={{ ...glassStyle, borderTop: '3px solid #1A5C3B', position: 'relative', overflow: 'hidden' }}>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                      <span className="material-symbols-outlined" style={{ color: '#1A5C3B' }}>auto_awesome</span>
+                      <h3 className="font-headline" style={{ fontSize: '20px' }}>AI Predictive Analytics</h3>
+                    </div>
+                    <p style={{ color: 'var(--on-surface-variant)', lineHeight: 1.6, marginBottom: '24px' }}>
+                      Based on current engagement trends and homework submission rates, the AI predicts a <strong style={{ color: 'var(--secondary)' }}>4% drop in mid-term scores</strong> for the Physics cohort. Immediate intervention suggested for the bottom 15% of students.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <button style={{ padding: '12px 24px', backgroundColor: '#F9FAFB', border: '1px solid #EAECF0', borderRadius: '12px', color: '#1A5C3B', cursor: 'pointer', fontWeight: 600, fontFamily: 'Inter,sans-serif' }}>Review At-Risk Students</button>
+                      <button style={{ padding: '12px 24px', background: 'linear-gradient(135deg,#1A5C3B,#2D7A52)', border: 'none', borderRadius: '12px', color: '#fff', cursor: 'pointer', fontWeight: 600, fontFamily: 'Inter,sans-serif' }}>Generate Remedial Plan</button>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div style={{ position: 'relative', flexGrow: 1 }}>
-                <svg width="100%" height="100%" viewBox="0 0 1000 200" preserveAspectRatio="none" style={{ display: 'block' }}>
-                  <defs>
-                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#c0c1ff" stopOpacity="0.5" />
-                      <stop offset="100%" stopColor="#494bd6" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M0,180 Q100,160 200,100 T400,120 T600,60 T800,90 T1000,40 L1000,200 L0,200 Z" fill="url(#chartGrad)" />
-                  <path d="M0,180 Q100,160 200,100 T400,120 T600,60 T800,90 T1000,40" fill="none" stroke="#c0c1ff" strokeWidth="4" strokeLinecap="round" />
-                  <circle cx="200" cy="100" r="6" fill="#101419" stroke="#c0c1ff" strokeWidth="2" />
-                  <circle cx="600" cy="60" r="6" fill="#101419" stroke="#c0c1ff" strokeWidth="2" />
-                  <circle cx="1000" cy="40" r="6" fill="#101419" stroke="#c0c1ff" strokeWidth="2" />
-                </svg>
-                <div style={{ position: 'absolute', bottom: 0, width: '100%', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'rgba(199, 196, 215, 0.4)', fontFamily: 'monospace', paddingTop: '16px' }}>
-                  <span>00:00</span><span>15:00</span><span>30:00</span><span>45:00 (END)</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+            )}
 
-        {/* Bento Grid */}
-        <section style={{ display: 'grid', gridTemplateColumns: '4fr 5fr 3fr', gap: '24px' }}>
-          {/* AI Summary */}
-          <div className="glass-panel" style={{ borderRadius: '24px', padding: '32px', borderTop: '2px solid rgba(74, 225, 118, 0.2)', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: '-48px', right: '-48px', width: '128px', height: '128px', background: 'rgba(74, 225, 118, 0.05)', filter: 'blur(40px)', borderRadius: '50%' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-              <span className="material-symbols-outlined" style={{ color: 'var(--secondary)' }}>psychology</span>
-              <h2 className="font-headline" style={{ fontSize: '20px', fontWeight: 700 }}>AI Summary</h2>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
-              <p>The class demonstrated high initial engagement, but encountered a significant "refractive friction" point at the 22-minute mark.</p>
-              <div style={{ padding: '16px', backgroundColor: 'rgba(49, 53, 59, 0.4)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--secondary)' }}>Key Struggle Points:</p>
-                <ul style={{ fontSize: '14px', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <li>Base case logic vs Infinite loops</li>
-                  <li>Visualizing the call stack</li>
-                  <li>Tail recursion optimization</li>
-                </ul>
-              </div>
-              <p style={{ fontSize: '14px', fontStyle: 'italic', opacity: 0.7 }}>"65% of students paused during the Factorial code-along to re-read the terminal state condition."</p>
-            </div>
-          </div>
-
-          {/* Student Insights */}
-          <div className="glass-panel" style={{ borderRadius: '24px', padding: '32px', border: '1px solid rgba(70, 69, 84, 0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>groups</span>
-                <h2 className="font-headline" style={{ fontSize: '20px', fontWeight: 700 }}>Student Insights</h2>
-              </div>
-              <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--on-surface-variant)' }}>N=28 Students</span>
-            </div>
-            {/* Table Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr 1fr', padding: '0 16px 16px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(199, 196, 215, 0.5)' }}>
-              <div>Student Name</div>
-              <div style={{ textAlign: 'center' }}>Score</div>
-              <div style={{ textAlign: 'right' }}>Trend</div>
-            </div>
-            {/* Table Rows */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
-              {studentInsights.map((s, i) => (
-                <div key={i} style={{
-                  display: 'grid', gridTemplateColumns: '3fr 2fr 1fr', alignItems: 'center',
-                  padding: '16px', borderRadius: '12px',
-                  transition: 'background 0.3s', cursor: 'default',
-                }}
-                onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--surface-container-high)'}
-                onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <div style={{ fontWeight: 500 }}>{s.name}</div>
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <span style={{
-                      backgroundColor: s.scoreBg, color: s.scoreColor,
-                      fontSize: '12px', padding: '4px 8px', borderRadius: '999px',
-                      border: `1px solid ${s.scoreBorder}`,
-                    }}>{s.score}</span>
-                  </div>
-                  <div style={{ textAlign: 'right', color: s.trendColor || s.scoreColor }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{s.trend}</span>
+            {/* TAB 2: ATTENDANCE & BEHAVIOR */}
+            {activeTab === 'attendance' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <div style={glassStyle}>
+                  <h3 className="font-headline" style={{ fontSize: '20px', marginBottom: '24px' }}>Weekly Attendance Trend</h3>
+                  <div style={{ height: '350px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={attendanceData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                        <XAxis dataKey="day" stroke="#9CA3AF" />
+                        <YAxis stroke="#9CA3AF" />
+                        <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#EAECF0', borderRadius: '8px', color: '#111827' }} />
+                        <Legend />
+                        <Bar dataKey="present" fill="#4ae176" name="Present" radius={[4, 4, 0, 0]} />
+                        <Line type="monotone" dataKey="absent" stroke="#ff5f81" name="Absent" strokeWidth={3} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Action Items */}
-          <div style={{ backgroundColor: 'var(--surface-container-high)', borderRadius: '24px', padding: '32px', border: '1px solid rgba(192, 193, 255, 0.1)', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>assignment_turned_in</span>
-              <h2 className="font-headline" style={{ fontSize: '20px', fontWeight: 700, color: 'var(--primary-fixed-dim)' }}>Action Items</h2>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {actionItems.map((item, i) => (
-                <div key={i} style={{
-                  padding: '16px', backgroundColor: 'var(--surface-container-lowest)', borderRadius: '16px',
-                  border: '1px solid rgba(70, 69, 84, 0.05)', cursor: 'pointer',
-                  transition: 'all 0.3s',
-                }}
-                onMouseOver={e => e.currentTarget.style.borderColor = 'rgba(192, 193, 255, 0.3)'}
-                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(70, 69, 84, 0.05)'}
-                >
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, color: item.color, marginBottom: '4px' }}>{item.priority}</div>
-                  <p style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.3 }}>{item.label}</p>
+                <div style={glassStyle}>
+                  <h3 className="font-headline" style={{ fontSize: '20px', marginBottom: '24px' }}>Behavioral Radar</h3>
+                  <div style={{ height: '350px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={behaviorRadar}>
+                        <PolarGrid stroke="#F3F4F6" />
+                        <PolarAngleAxis dataKey="metric" tick={{ fill: '#6B7280' }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#9CA3AF' }} />
+                        <Radar name="Class Average" dataKey="classAvg" stroke="#8083ff" fill="#8083ff" fillOpacity={0.4} />
+                        <Radar name="Top Student" dataKey="topStudent" stroke="#4ae176" fill="#4ae176" fillOpacity={0.2} />
+                        <Legend />
+                        <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#EAECF0', borderRadius: '8px', color: '#111827' }} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              ))}
-              <button style={{
-                width: '100%', marginTop: '16px', padding: '12px',
-                backgroundColor: 'rgba(128, 131, 255, 0.2)',
-                color: 'var(--primary-fixed-dim)',
-                border: '1px solid rgba(192, 193, 255, 0.2)',
-                borderRadius: '12px', fontWeight: 600,
-                fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em',
-                cursor: 'pointer', transition: 'all 0.2s',
-              }}>Schedule Next Lab</button>
-            </div>
-          </div>
-        </section>
+              </div>
+            )}
+
+            {/* TAB 3: ACADEMICS & EXAMS */}
+            {activeTab === 'academics' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={glassStyle}>
+                  <h3 className="font-headline" style={{ fontSize: '20px', marginBottom: '24px' }}>Test Performance Evolution</h3>
+                  <div style={{ height: '300px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={testPerformance}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                        <XAxis dataKey="exam" stroke="#9CA3AF" />
+                        <YAxis stroke="#9CA3AF" domain={[0, 100]} />
+                        <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#EAECF0', borderRadius: '8px', color: '#111827' }} />
+                        <Legend />
+                        <Area type="monotone" dataKey="classAvg" stroke="#8083ff" fill="#8083ff" fillOpacity={0.1} name="Class Average" />
+                        <Area type="monotone" dataKey="marks" stroke="#4ae176" fill="#4ae176" fillOpacity={0.3} name="Top 10% Avg" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+                  <div style={glassStyle}>
+                    <h3 className="font-headline" style={{ fontSize: '20px', marginBottom: '24px' }}>Subject-wise Averages</h3>
+                    <div style={{ height: '300px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={subjectMarks}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                          <XAxis dataKey="subject" stroke="#9CA3AF" />
+                          <YAxis stroke="#9CA3AF" />
+                          <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#EAECF0', borderRadius: '8px', color: '#111827' }} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                          <Legend />
+                          <Bar dataKey="avg" fill="#8083ff" name="Class Average" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="highest" fill="#ffb95f" name="Highest Score" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div style={glassStyle}>
+                    <h3 className="font-headline" style={{ fontSize: '20px', marginBottom: '24px' }}>Assignment Status</h3>
+                    <div style={{ height: '300px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={assignmentStatus} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
+                            {assignmentStatus.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#EAECF0', borderRadius: '8px', color: '#111827' }} />
+                          <Legend verticalAlign="bottom" height={36}/>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
-
-      {/* Floating Action Buttons */}
-      <div style={{ position: 'fixed', bottom: '48px', right: '48px', display: 'flex', gap: '16px', zIndex: 40 }}>
-        <button className="glass-panel" style={{
-          display: 'flex', alignItems: 'center', gap: '12px',
-          padding: '16px 24px', border: '1px solid rgba(70, 69, 84, 0.2)',
-          borderRadius: '16px', fontWeight: 600, cursor: 'pointer',
-          boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
-          transition: 'all 0.2s', color: 'var(--on-surface)',
-        }}>
-          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>picture_as_pdf</span>
-          Export PDF
-        </button>
-        <button style={{
-          display: 'flex', alignItems: 'center', gap: '12px',
-          padding: '16px 24px',
-          background: 'linear-gradient(to bottom right, var(--primary), var(--inverse-primary))',
-          border: '1px solid rgba(128, 131, 255, 0.5)',
-          borderRadius: '16px', fontWeight: 800, cursor: 'pointer',
-          boxShadow: '0 0 20px rgba(128, 131, 255, 0.3)',
-          transition: 'all 0.2s', color: 'var(--on-primary)',
-        }}>
-          <span className="material-symbols-outlined">share</span>
-          Share with LMS
-        </button>
-      </div>
       </div>
     </div>
   );

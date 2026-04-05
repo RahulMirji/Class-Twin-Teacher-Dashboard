@@ -14,6 +14,7 @@ export default function useSocket(sessionCode) {
   const [sessionEnded, setSessionEnded] = useState(false);
   const [qrCode, setQrCode] = useState(null);
   const [classHealth, setClassHealth] = useState(null);
+  const [quizResults, setQuizResults] = useState({});
 
   useEffect(() => {
     async function connectSocket() {
@@ -36,6 +37,12 @@ export default function useSocket(sessionCode) {
     socket.on('connect', () => {
       console.log('🔌 Connected to ClassTwin server');
       setConnected(true);
+      // Auto-join teacher room if we have a session code
+      if (sessionCode) {
+        socket.emit('join_teacher_room', { code: sessionCode }, (res) => {
+          console.log(`🏫 Joined teacher room for ${sessionCode}:`, res);
+        });
+      }
     });
 
     socket.on('disconnect', () => {
@@ -69,6 +76,19 @@ export default function useSocket(sessionCode) {
     socket.on('qr_code', (data) => {
       setQrCode(data.qrCode);
     });
+
+    socket.on('quiz_results_update', (data) => {
+      setQuizResults(prev => ({
+        ...prev,
+        [data.questionId]: {
+          totalResponses: data.totalResponses,
+          correctCount: data.correctCount,
+          incorrectCount: data.incorrectCount,
+          correctPercent: data.correctPercent,
+          latestAnswer: data.latestAnswer,
+        },
+      }));
+    });
     }
 
     connectSocket();
@@ -76,7 +96,7 @@ export default function useSocket(sessionCode) {
     return () => {
       socketRef.current?.disconnect();
     };
-  }, []);
+  }, [sessionCode]);
 
   const createSession = useCallback(async (data) => {
     // 1. Persist to Supabase via REST (required for start-stream lookup)
@@ -94,8 +114,10 @@ export default function useSocket(sessionCode) {
         if (res.ok) {
           const sessionData = await res.json();
           if (sessionData?.qrCode) setQrCode(sessionData.qrCode);
-          // 2. Also join socket room so teacher gets live events
-          socketRef.current?.emit('create_session', data, () => {});
+          // Join the teacher socket room for the session code (don't create a duplicate)
+          if (sessionData?.code) {
+            socketRef.current?.emit('join_teacher_room', { code: sessionData.code }, () => {});
+          }
           return sessionData; // { id, code, topic, qrCode, ... }
         }
       }
@@ -141,6 +163,7 @@ export default function useSocket(sessionCode) {
     sessionEnded,
     qrCode,
     classHealth,
+    quizResults,
     createSession,
     startSession,
     nextRound,
@@ -149,5 +172,6 @@ export default function useSocket(sessionCode) {
     setTwinData,
     setAiInsight,
     setSessionEnded,
+    setQuizResults,
   };
 }

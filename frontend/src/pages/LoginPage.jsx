@@ -9,9 +9,7 @@ export default function LoginPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!loading && user) {
-      navigate('/sessions', { replace: true });
-    }
+    if (!loading && user) navigate('/sessions', { replace: true });
   }, [user, loading, navigate]);
 
   const handleGoogleSignIn = async () => {
@@ -27,11 +25,8 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: 'var(--background)', color: 'var(--on-surface)',
-      }}>
-        <div className="loading-pulse" style={{ fontSize: '18px', opacity: 0.6 }}>Loading...</div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F6FA' }}>
+        <p style={{ fontSize: '14px', color: '#9CA3AF' }}>Loading...</p>
       </div>
     );
   }
@@ -39,78 +34,56 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backgroundColor: 'var(--background)', color: 'var(--on-surface)',
-      fontFamily: "'Inter', sans-serif", position: 'relative', overflow: 'hidden',
+      background: '#F5F6FA', fontFamily: "'Inter', sans-serif", position: 'relative', overflow: 'hidden',
     }}>
-      {/* Ambient glows */}
-      <div style={{
-        position: 'absolute', top: '-20%', left: '10%',
-        width: '600px', height: '600px',
-        background: 'rgba(128, 131, 255, 0.08)', filter: 'blur(120px)', borderRadius: '50%',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: '-15%', right: '15%',
-        width: '500px', height: '500px',
-        background: 'rgba(74, 225, 118, 0.05)', filter: 'blur(100px)', borderRadius: '50%',
-      }} />
+      {/* Subtle green glow */}
+      <div style={{ position: 'absolute', top: '-100px', right: '10%', width: '400px', height: '400px', background: 'rgba(26, 92, 59, 0.06)', filter: 'blur(80px)', borderRadius: '50%', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: '-80px', left: '15%', width: '300px', height: '300px', background: 'rgba(26, 92, 59, 0.04)', filter: 'blur(60px)', borderRadius: '50%', pointerEvents: 'none' }} />
 
-      <div style={{
-        position: 'relative', zIndex: 1,
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        maxWidth: '440px', width: '100%', padding: '0 24px',
-      }}>
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '440px', width: '100%', padding: '0 24px' }}>
+
         {/* Logo */}
         <div style={{
-          width: '64px', height: '64px', borderRadius: '18px',
-          background: 'linear-gradient(to bottom right, var(--primary), var(--inverse-primary))',
+          width: '60px', height: '60px', borderRadius: '16px',
+          background: 'linear-gradient(135deg, #1A5C3B, #2D7A52)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 12px 40px rgba(192, 193, 255, 0.25)',
-          marginBottom: '24px',
+          boxShadow: '0 8px 24px rgba(26, 92, 59, 0.25)', marginBottom: '20px',
         }}>
-          <span className="material-symbols-outlined filled" style={{
-            color: 'var(--on-primary-fixed)', fontSize: '30px',
-          }}>auto_awesome</span>
+          <span className="material-symbols-outlined filled" style={{ color: '#fff', fontSize: '28px' }}>neurology</span>
         </div>
 
-        <h1 className="font-headline" style={{
-          fontSize: '32px', fontWeight: 800, letterSpacing: '-0.02em',
-          marginBottom: '8px', textAlign: 'center',
-        }}>Welcome to ClassTwin</h1>
-
-        <p style={{
-          fontSize: '15px', color: 'var(--on-surface-variant)',
-          lineHeight: 1.6, textAlign: 'center', marginBottom: '40px',
-        }}>
-          Sign in to access your teacher dashboard and create live classroom sessions.
+        <h1 className="font-headline" style={{ fontSize: '28px', fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', marginBottom: '8px', textAlign: 'center' }}>
+          Welcome to ClassTwin
+        </h1>
+        <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, textAlign: 'center', marginBottom: '32px' }}>
+          Sign in to access your AI-powered teacher dashboard.
         </p>
 
-        {/* Login Card */}
+        {/* Card */}
         <div style={{
-          width: '100%',
-          backgroundColor: 'var(--surface-container-low)',
-          borderRadius: '24px', padding: '32px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+          width: '100%', background: '#FFFFFF',
+          borderRadius: '20px', padding: '28px',
+          border: '1px solid #EAECF0',
+          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.06)',
         }}>
           <button
             onClick={handleGoogleSignIn}
             disabled={signingIn}
             style={{
-              width: '100%', padding: '14px 24px',
+              width: '100%', padding: '13px 20px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
-              backgroundColor: 'var(--surface-container-highest)',
-              color: 'var(--on-surface)',
-              fontWeight: 600, fontSize: '15px',
-              borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: '#FFFFFF', color: '#111827',
+              fontWeight: 600, fontSize: '14px',
+              borderRadius: '50px', border: '1px solid #EAECF0',
               cursor: signingIn ? 'not-allowed' : 'pointer',
               opacity: signingIn ? 0.6 : 1,
-              transition: 'all 0.3s',
+              transition: 'all 0.2s',
               fontFamily: "'Inter', sans-serif",
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             }}
-            onMouseOver={e => { if (!signingIn) e.currentTarget.style.backgroundColor = 'var(--surface-container)'; }}
-            onMouseOut={e => { e.currentTarget.style.backgroundColor = 'var(--surface-container-highest)'; }}
+            onMouseOver={e => { if (!signingIn) e.currentTarget.style.borderColor = '#D1D5DB'; }}
+            onMouseOut={e => { e.currentTarget.style.borderColor = '#EAECF0'; }}
           >
-            {/* Google "G" icon */}
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -120,28 +93,16 @@ export default function LoginPage() {
             {signingIn ? 'Signing in...' : 'Continue with Google'}
           </button>
 
-          {error && (
-            <p style={{
-              marginTop: '16px', color: 'var(--error)',
-              fontSize: '13px', textAlign: 'center',
-            }}>{error}</p>
-          )}
+          {error && <p style={{ marginTop: '14px', color: '#EF4444', fontSize: '13px', textAlign: 'center' }}>{error}</p>}
 
-          <div style={{
-            marginTop: '24px', paddingTop: '20px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-            textAlign: 'center',
-          }}>
-            <p style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.5 }}>
+          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #F3F4F6', textAlign: 'center' }}>
+            <p style={{ fontSize: '12px', color: '#9CA3AF' }}>
               By signing in, you agree to our Terms of Service and Privacy Policy.
             </p>
           </div>
         </div>
 
-        <p style={{
-          marginTop: '24px', fontSize: '13px',
-          color: 'var(--on-surface-variant)', opacity: 0.4,
-        }}>
+        <p style={{ marginTop: '20px', fontSize: '12px', color: '#9CA3AF' }}>
           Teacher Dashboard • Powered by AI
         </p>
       </div>

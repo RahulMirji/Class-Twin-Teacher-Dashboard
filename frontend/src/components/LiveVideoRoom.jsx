@@ -6,6 +6,7 @@ import {
   VideoTrack,
   useLocalParticipant,
   useTracks,
+  useRemoteParticipants,
   TrackToggle,
   DisconnectButton,
   RoomAudioRenderer,
@@ -14,12 +15,75 @@ import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
 // ─── Inner component, rendered inside <LiveKitRoom> context ────────────────
-function VideoConferenceInner({ onDisconnect }) {
+function VideoConferenceInner({ onDisconnect, onParticipantsChange }) {
   const { localParticipant } = useLocalParticipant();
+  const remoteParticipants = useRemoteParticipants();
   const [isCamOn, setIsCamOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [participantCount, setParticipantCount] = useState(1);
+
+  const [nameCache, setNameCache] = useState({});
+
+  // Resolve student names from DB when participants change
+  useEffect(() => {
+    if (!onParticipantsChange || remoteParticipants.length === 0) {
+      if (onParticipantsChange) onParticipantsChange([]);
+      return;
+    }
+
+    const identities = remoteParticipants.map(p => p.identity);
+    // Find UUIDs that need resolving (not already cached)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+    const unresolvedIds = identities.filter(id => uuidPattern.test(id) && !nameCache[id]);
+
+    const buildViewers = (resolvedNames) => {
+      return remoteParticipants.map((p, idx) => {
+        let displayName = p.name;
+
+        // Check DB-resolved name
+        if (!displayName && resolvedNames[p.identity]) {
+          displayName = resolvedNames[p.identity];
+        }
+
+        // Try metadata
+        if (!displayName && p.metadata) {
+          try {
+            const meta = JSON.parse(p.metadata);
+            displayName = meta.studentName || meta.name || meta.displayName || '';
+          } catch (_) { /* not JSON */ }
+        }
+
+        // Clean up identity as fallback
+        if (!displayName) {
+          let cleaned = p.identity.replace(/^student-/i, '').replace(/^viewer-/i, '');
+          displayName = uuidPattern.test(cleaned) ? `Student ${idx + 1}` : cleaned;
+        }
+
+        return { id: p.identity, name: displayName, joinedAt: new Date().toISOString() };
+      });
+    };
+
+    if (unresolvedIds.length > 0) {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      fetch(`${API_URL}/api/students/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: unresolvedIds }),
+      })
+        .then(r => r.json())
+        .then(newNames => {
+          const merged = { ...nameCache, ...newNames };
+          setNameCache(merged);
+          onParticipantsChange(buildViewers(merged));
+        })
+        .catch(() => {
+          onParticipantsChange(buildViewers(nameCache));
+        });
+    } else {
+      onParticipantsChange(buildViewers(nameCache));
+    }
+  }, [remoteParticipants, onParticipantsChange]);
 
   const cameraTracks = useTracks(
     [{ source: Track.Source.Camera, withPlaceholder: true }],
@@ -206,7 +270,7 @@ function VideoConferenceInner({ onDisconnect }) {
 }
 
 // ─── Public component ───────────────────────────────────────────────────────
-export default function LiveVideoRoom({ token, serverUrl, onDisconnect }) {
+export default function LiveVideoRoom({ token, serverUrl, onDisconnect, onParticipantsChange }) {
   if (!token || !serverUrl) {
     return (
       <div style={{
@@ -231,7 +295,7 @@ export default function LiveVideoRoom({ token, serverUrl, onDisconnect }) {
       onDisconnected={onDisconnect}
       style={{ width: '100%', height: '100%' }}
     >
-      <VideoConferenceInner onDisconnect={onDisconnect} />
+      <VideoConferenceInner onDisconnect={onDisconnect} onParticipantsChange={onParticipantsChange} />
     </LiveKitRoom>
   );
 }
