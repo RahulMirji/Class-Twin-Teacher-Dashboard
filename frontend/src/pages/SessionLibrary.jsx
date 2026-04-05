@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import StartSessionModal from '../components/StartSessionModal';
+import ImportDataModal from '../components/ImportDataModal';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
 export default function SessionLibrary() {
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [pastSessions, setPastSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [oracle, setOracle] = useState({ loading: true, message: '', score: 0 });
@@ -123,7 +125,7 @@ export default function SessionLibrary() {
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
                 Start New Session
               </button>
-              <button className="ct-btn-outline">
+              <button className="ct-btn-outline" onClick={() => setShowImportModal(true)}>
                 Import Data
               </button>
             </div>
@@ -277,6 +279,7 @@ export default function SessionLibrary() {
       </main>
 
       {showModal && <StartSessionModal onClose={() => setShowModal(false)} />}
+      {showImportModal && <ImportDataModal onClose={() => setShowImportModal(false)} onImportComplete={() => fetchDashboardData()} />}
     </div>
   );
 }

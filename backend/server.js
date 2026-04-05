@@ -11,6 +11,7 @@ const { processRound } = require('./riskEngine');
 const { getAIInsight } = require('./aiService');
 const { supabase, createUserClient } = require('./supabaseClient');
 const { generateToken, createRoom, deleteRoom, LIVEKIT_URL } = require('./livekitService');
+const { handleTwinChat, getClassroomState } = require('./twinChatService');
 
 const app = express();
 const httpServer = createServer(app);
@@ -308,6 +309,109 @@ app.post('/api/students/resolve', async (req, res) => {
   } catch (err) {
     console.error('Student resolve error:', err);
     res.json({});
+  }
+});
+
+// In-memory store for imported students (fallback when DB table not ready)
+const importedStudentsStore = {};
+
+// POST /api/students/import — Bulk import students from CSV
+app.post('/api/students/import', authMiddleware, async (req, res) => {
+  try {
+    const { students } = req.body;
+    if (!students || !Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ error: 'No student data provided' });
+    }
+    if (students.length > 500) {
+      return res.status(400).json({ error: 'Maximum 500 students per import' });
+    }
+
+    const teacherId = req.user.id;
+    let imported = 0;
+    let failed = 0;
+
+    // Initialize store for this teacher
+    if (!importedStudentsStore[teacherId]) {
+      importedStudentsStore[teacherId] = [];
+    }
+
+    // Try Supabase first, fallback to in-memory
+    const userClient = createUserClient(req.accessToken);
+    let useMemory = false;
+
+    for (const student of students) {
+      const name = student.name || student.student_name || student.full_name || '';
+      const email = student.email || '';
+      const rollNumber = student.roll_number || student.roll || student.id_number || '';
+
+      if (!name.trim()) {
+        failed++;
+        continue;
+      }
+
+      const record = {
+        teacher_id: teacherId,
+        student_name: name.trim(),
+        email: email.trim() || null,
+        roll_number: rollNumber.trim() || null,
+        created_at: new Date().toISOString(),
+      };
+
+      if (!useMemory) {
+        try {
+          const { error: insertErr } = await userClient
+            .from('imported_students')
+            .insert(record);
+
+          if (insertErr) {
+            console.warn('DB insert failed, switching to in-memory:', insertErr.message);
+            useMemory = true;
+            // Still save this record in memory
+            importedStudentsStore[teacherId].push(record);
+            imported++;
+          } else {
+            imported++;
+          }
+        } catch (dbErr) {
+          useMemory = true;
+          importedStudentsStore[teacherId].push(record);
+          imported++;
+        }
+      } else {
+        importedStudentsStore[teacherId].push(record);
+        imported++;
+      }
+    }
+
+    console.log(`📥 Import complete: ${imported} imported, ${failed} failed (memory: ${useMemory})`);
+    res.json({ imported, failed, total: students.length });
+  } catch (err) {
+    console.error('Import error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/students/imported — Get imported students for roster
+app.get('/api/students/imported', authMiddleware, async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const userClient = createUserClient(req.accessToken);
+
+    // Try DB first
+    const { data, error } = await userClient
+      .from('imported_students')
+      .select('*')
+      .eq('teacher_id', teacherId)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      return res.json(data);
+    }
+
+    // Fallback to in-memory
+    res.json(importedStudentsStore[teacherId] || []);
+  } catch (err) {
+    res.json(importedStudentsStore[req.user.id] || []);
   }
 });
 
@@ -1105,6 +1209,44 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`📡 Disconnected: ${socket.id}`);
   });
+});
+
+// ═══════════════════════════════════════════════
+// Twin Insight Engine API
+// ═══════════════════════════════════════════════
+
+// POST /api/twin-chat — RAG-powered chat with Gemini
+app.post('/api/twin-chat', authMiddleware, async (req, res) => {
+  try {
+    const { message, mode, conversationHistory } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    const userClient = createUserClient(req.accessToken);
+    const result = await handleTwinChat({
+      message,
+      mode: mode || 'chat',
+      conversationHistory: conversationHistory || [],
+      userClient,
+      teacherId: req.user.id,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('Twin chat error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/twin-state — Live classroom state for metadata bar
+app.get('/api/twin-state', authMiddleware, async (req, res) => {
+  try {
+    const userClient = createUserClient(req.accessToken);
+    const state = await getClassroomState(userClient, req.user.id);
+    res.json(state);
+  } catch (err) {
+    console.error('Twin state error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ═══════════════════════════════════════════════
